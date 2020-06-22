@@ -4,12 +4,21 @@
 ```bash
 $ go test ./ringbuf/rb -v -race -run 'TestQueuePutGet'
 === RUN   TestQueuePutGet
-    TestQueuePutGet: rb_test.go:225: Grp: 16, Times: 1360000, use: 16.019835259s, 11.779µs/op
-    TestQueuePutGet: rb_test.go:226: Put: 1360000, use: 9.277736289s, 6.821µs/op
-    TestQueuePutGet: rb_test.go:227: Get: 1360000, use: 3.963994253s, 2.914µs/op
---- PASS: TestQueuePutGet (16.02s)
+    TestQueuePutGet: rb_test.go:237: Grp: 16, Times: 1360000, use: 13.239249853s, 9.734µs/op
+    TestQueuePutGet: rb_test.go:238: Put: 1360000, use: 5.040007349s, 3.705µs/op
+    TestQueuePutGet: rb_test.go:239: Get: 1360000, use: 3.274023288s, 2.407µs/op
+--- PASS: TestQueuePutGet (13.24s)
 ```
 
+A third-party go ring buffer has similar result:
+
+```bash
+=== RUN   TestQueuePutGet
+    TestQueuePutGet: esQueue_test.go:54: Grp: 16, Times: 1360000, use: 11.388502861s, 8.373µs/op
+    TestQueuePutGet: esQueue_test.go:55: Put: 1360000, use: 5.659641221s, 4.161µs/op
+    TestQueuePutGet: esQueue_test.go:56: Get: 1360000, use: 3.660366563s, 2.691µs/op
+--- PASS: TestQueuePutGet (11.39s)
+```
 
 
 

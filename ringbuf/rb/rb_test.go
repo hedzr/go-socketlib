@@ -191,6 +191,14 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 	}
 }
 
+// multiple producers
+func TestRingBuf_MPut(t *testing.T) {
+	var maxN = NLtd * 1000
+	putRandomized(t, maxN, NLtd, func(r RingBuffer) {
+		// r.Debug(true)
+	})
+}
+
 //
 // go test ./ringbuf/rb -v -race -run 'TestQueuePutGet'
 // go test ./ringbuf/rb -v -race -run '^TestQueuePutGet$'

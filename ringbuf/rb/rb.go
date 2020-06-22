@@ -44,7 +44,6 @@ type (
 
 	ringBuf struct {
 		// isEmpty bool
-		_          cpu.CacheLinePad
 		cap        uint32
 		capModMask uint32
 		head       uint32
@@ -58,8 +57,9 @@ type (
 	}
 
 	rbItem struct {
-		readWrite uint32 // 0: writable, 1: readable, 2: write ok, 3: read ok
-		value     interface{}
+		readWrite uint64      // 0: writable, 1: readable, 2: write ok, 3: read ok
+		value     interface{} // ptr
+		_         cpu.CacheLinePad
 	}
 
 	ringer struct {
@@ -95,7 +95,7 @@ func (rb *ringBuf) Enqueue(item interface{}) (err error) {
 
 		// tag := atomic.LoadUint32(&holder.readWrite)
 
-		if atomic.CompareAndSwapUint32(&holder.readWrite, 0, 2) {
+		if atomic.CompareAndSwapUint64(&holder.readWrite, 0, 2) {
 			break
 		}
 
@@ -111,7 +111,7 @@ func (rb *ringBuf) Enqueue(item interface{}) (err error) {
 		return
 	}
 
-	if !atomic.CompareAndSwapUint32(&holder.readWrite, 2, 1) {
+	if !atomic.CompareAndSwapUint64(&holder.readWrite, 2, 1) {
 		err = fmt.Errorf("[W] %w, 2=>1, %v", ErrRaced, holder.readWrite)
 		return
 	}
@@ -147,7 +147,7 @@ func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 		holder = &rb.data[head]
 
 		// tag := atomic.LoadUint32(&holder.readWrite)
-		if atomic.CompareAndSwapUint32(&holder.readWrite, 1, 3) {
+		if atomic.CompareAndSwapUint64(&holder.readWrite, 1, 3) {
 			break
 		}
 
@@ -168,7 +168,7 @@ func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 	// 	rb.logger.Debug("[ringbuf][GET] ", zap.Uint32("cap", rb.cap), zap.Uint32("qty", rb.qty(head, tail)), zap.Uint32("tail", tail), zap.Uint32("head", head), zap.Uint32("new head", nh))
 	// }
 
-	if !atomic.CompareAndSwapUint32(&holder.readWrite, 3, 0) {
+	if !atomic.CompareAndSwapUint64(&holder.readWrite, 3, 0) {
 		err = fmt.Errorf("%w, 3=>0, %v", ErrRaced, holder.readWrite)
 		return
 	}
