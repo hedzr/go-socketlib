@@ -38,6 +38,8 @@ type (
 		// IsFull() (b bool)
 
 		Debug(enabled bool) (lastState bool)
+
+		ResetCounters()
 	}
 
 	ringBuf struct {
@@ -48,6 +50,8 @@ type (
 		head       uint32
 		tail       uint32
 		data       []rbItem
+		putWaits   uint64
+		getWaits   uint64
 		debugMode  bool
 		logger     *zap.Logger
 		// _         cpu.CacheLinePad
@@ -70,25 +74,27 @@ func (rb *ringBuf) Put(item interface{}) (err error) {
 }
 
 func (rb *ringBuf) Enqueue(item interface{}) (err error) {
-	var tail, head uint32
+	var tail, head, nt uint32
+	var holder *rbItem
 	// var quard uint64
 	// quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
 	// head = (uint32)(quard & MaxUint32_64)
 	// tail = (uint32)(quard >> 32)
-	head = atomic.LoadUint32(&rb.head)
-	tail = atomic.LoadUint32(&rb.tail)
-	nt := (tail + 1) & rb.capModMask
-
-	isFull := nt == head
-	if isFull {
-		err = ErrQueueFull
-		return
-	}
-
-	holder := &rb.data[tail]
-
-	// tag := atomic.LoadUint32(&holder.readWrite)
 	for {
+		head = atomic.LoadUint32(&rb.head)
+		tail = atomic.LoadUint32(&rb.tail)
+		nt = (tail + 1) & rb.capModMask
+
+		isFull := nt == head
+		if isFull {
+			err = ErrQueueFull
+			return
+		}
+
+		holder = &rb.data[tail]
+
+		// tag := atomic.LoadUint32(&holder.readWrite)
+
 		if atomic.CompareAndSwapUint32(&holder.readWrite, 0, 2) {
 			break
 		}
@@ -96,6 +102,7 @@ func (rb *ringBuf) Enqueue(item interface{}) (err error) {
 		// err = fmt.Errorf("[W] %w, 0=>2, %v", ErrRaced, holder.readWrite)
 		// return
 		time.Sleep(1 * time.Nanosecond)
+		atomic.AddUint64(&rb.putWaits, 1)
 	}
 
 	holder.value = item
@@ -122,23 +129,24 @@ func (rb *ringBuf) Get() (item interface{}, err error) {
 
 func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 	var tail, head uint32
+	var holder *rbItem
 	// var quard uint64
 	// quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
 	// head = (uint32)(quard & MaxUint32_64)
 	// tail = (uint32)(quard >> 32)
-	head = atomic.LoadUint32(&rb.head)
-	tail = atomic.LoadUint32(&rb.tail)
-
-	isEmpty := head == tail
-	if isEmpty {
-		err = ErrQueueEmpty
-		return
-	}
-
-	holder := &rb.data[head]
-
-	// tag := atomic.LoadUint32(&holder.readWrite)
 	for {
+		head = atomic.LoadUint32(&rb.head)
+		tail = atomic.LoadUint32(&rb.tail)
+
+		isEmpty := head == tail
+		if isEmpty {
+			err = ErrQueueEmpty
+			return
+		}
+
+		holder = &rb.data[head]
+
+		// tag := atomic.LoadUint32(&holder.readWrite)
 		if atomic.CompareAndSwapUint32(&holder.readWrite, 1, 3) {
 			break
 		}
@@ -146,6 +154,7 @@ func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 		// err = fmt.Errorf("%w, 1=>3, %v", ErrRaced, holder.readWrite)
 		// return
 		time.Sleep(1 * time.Nanosecond)
+		atomic.AddUint64(&rb.getWaits, 1)
 	}
 
 	item = holder.value

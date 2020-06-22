@@ -14,4 +14,8 @@ require (
 	github.com/hedzr/logex v1.1.8
 	github.com/sirupsen/logrus v1.6.0
 	gitlab.com/hedzr/mqttlib v1.0.5
+	go.uber.org/zap v1.10.0
+	golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9
+	gopkg.in/hedzr/errors.v2 v2.0.12
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

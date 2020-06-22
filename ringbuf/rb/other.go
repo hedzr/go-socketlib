@@ -51,6 +51,26 @@ func WithDebugMode(debug bool) Opt {
 	}
 }
 
+type Dbg interface {
+	GetGetWaits() uint64
+	GetPutWaits() uint64
+	Debug(enabled bool) (lastState bool)
+	ResetCounters()
+}
+
+func (rb *ringBuf) GetGetWaits() uint64 {
+	return atomic.LoadUint64(&rb.getWaits)
+}
+
+func (rb *ringBuf) GetPutWaits() uint64 {
+	return atomic.LoadUint64(&rb.putWaits)
+}
+
+func (rb *ringBuf) ResetCounters() {
+	atomic.StoreUint64(&rb.getWaits, 0)
+	atomic.StoreUint64(&rb.putWaits, 0)
+}
+
 func (rb *ringBuf) Close() (err error) {
 	if rb.logger != nil {
 		err = rb.logger.Sync()

@@ -1,6 +1,9 @@
 package rb
 
 import (
+	"fmt"
+	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -62,6 +65,8 @@ func TestRingBuf_Put_Randomized(t *testing.T) {
 // go test ./ringbuf/rb -race -bench=. -run=none
 // go test ./ringbuf/rb -race -bench '.*Put128' -run=none
 //
+// go test ./ringbuf/rb -race -bench 'BenchmarkRingBuf' -run=none
+//
 // go test ./ringbuf/rb -race -bench=. -run=none -benchtime=3s
 //
 // go test ./ringbuf/rb -race -bench=. -benchmem -cpuprofile profile.out
@@ -86,6 +91,8 @@ func BenchmarkRingBuf_Put128(b *testing.B) {
 }
 
 func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r RingBuffer)) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	var d1Closed int32
 	d1, d2 := make(chan struct{}), make(chan struct{})
 
@@ -95,7 +102,7 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 		cb(rb)
 	}
 	noDebug = !rb.Debug(!noDebug)
-	t.Logf("Ring Buffer created, size = %v. maxN = %v", rb.Cap(), maxN)
+	t.Logf("Ring Buffer created, size = %v. maxN = %v, dbg: %v", rb.Cap(), maxN, !noDebug)
 	defer rb.Close()
 
 	go func() {
@@ -104,21 +111,23 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 		var it interface{}
 		var fetched []int
 		// t.Logf("[GET] d1Closed: %v, err: %v", d1Closed, err)
-		for i := 0; err != ErrQueueEmpty; i++ {
+		for i, retry := 0, 1; err != ErrQueueEmpty; i++ {
 		retryGet:
 			it, err = rb.Dequeue()
 			if err != nil {
 				if err == ErrQueueEmpty {
 					// block till queue not empty
-					if !noDebug {
-						t.Logf("[GET] %5d. quantity = %v. EMPTY! block till queue not empty", i, rb.Quantity())
+					if !noDebug && retry > 1000 {
+						fmt.Printf("[GET] %5d (retry %v). quantity = %v. EMPTY! block till queue not empty.\n", i, retry, rb.Quantity())
 					}
-					time.Sleep(1 * time.Microsecond)
+					time.Sleep(time.Duration(retry) * time.Microsecond)
+					retry++
 					goto retryGet
 				}
 				t.Fatalf("[GET] failed on i=%v. err: %+v.", i, err)
 			}
 
+			retry = 1
 			fetched = append(fetched, it.(int))
 			// t.Logf("[GET] %5d. '%v' GOT, quantity = %v.", i, it, rb.Quantity())
 			// time.Sleep(50 * time.Millisecond)
@@ -139,21 +148,26 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 			}
 			last = ix
 		}
+
 	}()
 
 	go func() {
 
 		var err error
-		for i := 0; i < maxN; i++ {
+		for i, retry := 0, 1; i < maxN; i++ {
 		retryPut:
 			err = rb.Enqueue(i)
 			if err != nil {
 				if err == ErrQueueFull {
 					// block till queue not full
-					if !noDebug {
-						t.Logf("[PUT] %5d. quantity = %v. FULL! block till queue not full", i, rb.Quantity())
+					if !noDebug && retry > 1000 {
+						fmt.Printf("[PUT] %5d (retry %v). quantity = %v. FULL! block till queue not full.\n", i, retry, rb.Quantity())
 					}
-					time.Sleep(1 * time.Microsecond)
+					time.Sleep(time.Duration(retry) * time.Microsecond)
+					retry++
+					if retry > 1000 {
+						break
+					}
 					goto retryPut
 				}
 				t.Fatalf("[PUT] failed on i=%v. err: %+v.", i, err)
@@ -161,6 +175,7 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 
 			// t.Logf("[PUT] %5d. '%v' put, quantity = %v.", i, i, rb.Quantity())
 			// time.Sleep(50 * time.Millisecond)
+			retry = 1
 		}
 		close(d1)
 		atomic.StoreInt32(&d1Closed, 1)
@@ -170,4 +185,168 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 
 	<-d1
 	<-d2
+
+	if x, ok := rb.(Dbg); ok {
+		t.Logf("Waits: get: %v, put: %v", x.GetGetWaits(), x.GetPutWaits())
+	}
+}
+
+//
+// go test ./ringbuf/rb -v -race -run 'TestQueuePutGet'
+// go test ./ringbuf/rb -v -race -run '^TestQueuePutGet$'
+// go test ./ringbuf/rb -v -race -run '^TestQueuePutGet.*'
+//
+func TestQueuePutGet(t *testing.T) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	tQueuePutGet(t, 10000, 1024*1024)
+	ticker := time.NewTicker(5 * time.Minute)
+	ticker.Stop()
+}
+
+// // go test ./ringbuf/rb -v -race -run 'TestQueuePutGet'
+// func TestQueuePutGetV(t *testing.T) {
+// 	runtime.GOMAXPROCS(runtime.NumCPU())
+// 	tQueuePutGet(t, 10000, 1024*1024)
+// }
+
+func tQueuePutGet(t *testing.T, cnt int, qSize uint32) {
+	// cnt := 10000
+	sum, loops := 0, runtime.NumCPU()*4
+	// fmt.Printf("--- TEST: cnt=%v, loops=%v.\n", cnt, loops)
+	start := time.Now()
+	var putD, getD time.Duration
+	for i := 0; i <= loops; i++ {
+		sum += i * cnt
+		put, get := testQueuePutGet(t, i, cnt, qSize)
+		putD += put
+		getD += get
+		// fmt.Printf("--- TEST %d/%d: putD = %v, getD = %v.\n", i, loops, putD, getD)
+	}
+	end := time.Now()
+	use := end.Sub(start)
+	// fmt.Printf("--- TEST: use = %v.\n", use)
+	op := use / time.Duration(sum)
+	t.Logf("Grp: %d, Times: %d, use: %v, %v/op", loops, sum, use, op)
+	t.Logf("Put: %d, use: %v, %v/op", sum, putD, putD/time.Duration(sum))
+	t.Logf("Get: %d, use: %v, %v/op", sum, getD, getD/time.Duration(sum))
+}
+
+//
+// go test ./ringbuf/rb -race -bench 'BenchmarkPutGet' -run=none -benchtime=10s -v
+//
+// go test ./ringbuf/rb -race -bench='.*PutGet16384$' -run=none
+//
+func BenchmarkPutGet(b *testing.B) {
+	b.ResetTimer()
+	bQueuePutGet(b, b.N, runtime.NumCPU()*4)
+}
+
+func bQueuePutGet(b testing.TB, cnt, loops int) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	sum := 0
+	// fmt.Printf("--- TEST: cnt=%v, loops=%v.\n", cnt, loops)
+	start := time.Now()
+	var putD, getD time.Duration
+	for i := 0; i <= loops; i++ {
+		sum += (i) * cnt
+		put, get := testQueuePutGet(b, i, cnt, 1024*1024)
+		putD += put
+		getD += get
+		// fmt.Printf("--- TEST: putD = %v, getD = %v.\n", putD, getD)
+	}
+	end := time.Now()
+	// fmt.Printf("--- TEST: use = %v.\n", end.Sub(start))
+	use := end.Sub(start)
+	op := use / time.Duration(sum)
+	b.Logf("Grp: %d, Times: %d, use: %v, %v/op | cnt = %v", runtime.NumCPU()*4, sum, use, op, cnt)
+	b.Logf("Put: %d, use: %v, %v/op", sum, putD, putD/time.Duration(sum))
+	b.Logf("Get: %d, use: %v, %v/op", sum, getD, getD/time.Duration(sum))
+}
+
+func testQueuePutGet(t testing.TB, grp, cnt int, qSize uint32) (put, get time.Duration) {
+	var wg sync.WaitGroup
+	var id int32
+	rb := New(qSize) // , WithDebugMode(true))
+	// fmt.Printf("    grp: %v, cnt: %v, qSize: %v\n", grp, cnt, qSize)
+	wg.Add(grp)
+	start := time.Now()
+	for i := 0; i < grp; i++ {
+		// t.Logf("- [W] grp: %v, cnt: %v", grp, cnt)
+		go func(g int) {
+			defer wg.Done()
+			var err error
+			for j, retry := 0, 1; j < cnt; j++ {
+				val := fmt.Sprintf("Node.%d.%d.%d", g, j, atomic.AddInt32(&id, 1))
+			retryPut:
+				err = rb.Enqueue(&val)
+				if err != nil {
+					if err == ErrQueueFull {
+						// block till queue not full
+						time.Sleep(time.Duration(retry) * time.Microsecond)
+						retry++
+						if retry > 1000 {
+							fmt.Printf("[W][ERR] retry failed. val=%q.\n", val)
+							break
+						}
+						goto retryPut
+					}
+					t.Fatalf("[PUT] failed on i=%v. err: %+v.", g, err)
+				}
+				retry = 1
+			}
+			// fmt.Printf("[W] i/grp: %v. done.\n", g)
+		}(i)
+	}
+	wg.Wait()
+	end := time.Now()
+	put = end.Sub(start)
+
+	// fmt.Printf("[R] -------------- grp: %v...\n", grp)
+	var wg2 sync.WaitGroup
+	wg2.Add(grp)
+	start = time.Now()
+	for i := 0; i < grp; i++ {
+		// t.Logf("- [R] i: %v, grp: %v, cnt: %v", i, grp, cnt)
+		go func(g int) {
+			defer wg2.Done()
+			var err error
+			for j, retry := 0, 1; j < cnt; j++ {
+			retryGet:
+				_, err = rb.Get()
+				if err != nil {
+					if err == ErrQueueEmpty {
+						// block till queue not empty
+						// if !noDebug {
+						// t.Logf("[GET] %5d. quantity = %v. EMPTY! block till queue not empty", i, rb.Quantity())
+						// }
+						time.Sleep(time.Duration(retry) * time.Microsecond)
+						retry++
+						if retry > 1000 {
+							fmt.Printf("[R][ERR] retry failed. grp=%v, j=%v.\n", g, j)
+							break
+						}
+						goto retryGet
+					}
+					t.Fatalf("[GET] failed on i=%v. err: %+v.", g, err)
+				}
+				retry = 1
+			}
+			// fmt.Printf("[R] i/grp: %v. done.\n", g)
+		}(i)
+	}
+	wg2.Wait()
+	end = time.Now()
+	get = end.Sub(start)
+	if q := rb.Quantity(); q != 0 {
+		t.Errorf("Grp:%v, Quantity Error: [%v] <>[%v]", grp, q, 0)
+	}
+
+	// fmt.Printf("    [R] -------------- grp: %v END (put:%v, get: %v).\n", grp, put, get)
+	return
+}
+
+func BenchmarkHello(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		fmt.Sprintf("hello")
+	}
 }
