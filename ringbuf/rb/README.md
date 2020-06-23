@@ -22,6 +22,32 @@ A third-party go ring buffer has similar result:
 
 
 
+## Multiple Producers
+
+```bash
+$ go test ./ringbuf/rb -v -race -run 'TestRingBuf_MPut'
+=== RUN   TestRingBuf_MPut
+    TestRingBuf_MPut: rb_test.go:223: Grp: 16, Times: 1360000, use: 26.266041367s, 19.313µs/op
+    TestRingBuf_MPut: rb_test.go:224: Put: 1360000, use: 24.036637261s, 17.673µs/op | retry times: 0
+    TestRingBuf_MPut: rb_test.go:225: Get: 1360000, use: 2.229404106s, 1.639µs/op | retry times: 0
+--- PASS: TestRingBuf_MPut (51.29s)
+
+=== RUN   TestRingBuf_MPut
+    TestRingBuf_MPut: rb_test.go:231: Grp: 16, Times: 1360000, use: 42.836537705s, 31.497µs/op
+    TestRingBuf_MPut: rb_test.go:232: Put: 1360000, use: 39.277276612s, 28.88µs/op | retry times: 0
+    TestRingBuf_MPut: rb_test.go:233: Get: 1360000, use: 3.559261093s, 2.617µs/op | retry times: 0
+--- PASS: TestRingBuf_MPut (53.60s)
+```
+
+Average of put + get: 19.313µs/op .. 31.497µs/op
+
+```
+DEQUEUE: 1000*1000*1000/1.639 = 610,128,127
+ENQUEUE: 1000*1000*1000/17.673 = 56,583,489
+```
+
+
+
 ## Bench
 
 ### Bench A

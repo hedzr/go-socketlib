@@ -2,6 +2,7 @@ package rb
 
 import (
 	"fmt"
+	"math/rand"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -108,20 +109,60 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 	go func() {
 
 		var err error
+		for i, retry := 0, 1; i < maxN; i++ {
+		retryPut:
+			err = rb.Enqueue(i)
+			if err != nil {
+				if err == ErrQueueFull {
+					// block till queue not full
+					time.Sleep(time.Duration(retry) * time.Microsecond)
+					retry++
+					if retry > 1000 {
+						if !noDebug && retry > 1000 {
+							fmt.Printf("[PUT] %5d (retry %v). quantity = %v. FULL! block till queue not full.\n", i, retry, rb.Quantity())
+						}
+						break
+					}
+					goto retryPut
+				}
+
+				close(d1)
+				atomic.StoreInt32(&d1Closed, 1)
+				t.Fatalf("[PUT] failed on i=%v. err: %+v.", i, err)
+			}
+
+			// fmt.Printf("[PUT] %5d. '%v' put, quantity = %v.\n", i, i, rb.Quantity())
+			// t.Logf("[PUT] %5d. '%v' put, quantity = %v.", i, i, rb.Quantity())
+			// time.Sleep(50 * time.Millisecond)
+			retry = 1
+		}
+		close(d1)
+		atomic.StoreInt32(&d1Closed, 1)
+		// t.Log("[PUT] END")
+
+	}()
+
+	go func() {
+
+		d := time.Duration(rand.Intn(1000)+1000) * time.Millisecond
+		time.Sleep(d)
+		fmt.Printf("qty: %v\n", rb.Quantity())
+
+		var err error
 		var it interface{}
 		var fetched []int
 		// t.Logf("[GET] d1Closed: %v, err: %v", d1Closed, err)
-		for i, retry := 0, 1; err != ErrQueueEmpty; i++ {
+		for i, retry := 0, 1; err != ErrQueueEmpty || err == nil; i++ {
 		retryGet:
 			it, err = rb.Dequeue()
 			if err != nil {
 				if err == ErrQueueEmpty {
 					// block till queue not empty
-					if !noDebug && retry > 1000 {
-						fmt.Printf("[GET] %5d (retry %v). quantity = %v. EMPTY! block till queue not empty.\n", i, retry, rb.Quantity())
-					}
 					time.Sleep(time.Duration(retry) * time.Microsecond)
 					retry++
+					if !noDebug && retry > 2000 {
+						fmt.Printf("[GET] %5d (retry %v). quantity = %v, fetched = %v. EMPTY! block till queue not empty.\n", i, retry, rb.Quantity(), len(fetched))
+					}
 					goto retryGet
 				}
 				t.Fatalf("[GET] failed on i=%v. err: %+v.", i, err)
@@ -151,38 +192,6 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 
 	}()
 
-	go func() {
-
-		var err error
-		for i, retry := 0, 1; i < maxN; i++ {
-		retryPut:
-			err = rb.Enqueue(i)
-			if err != nil {
-				if err == ErrQueueFull {
-					// block till queue not full
-					if !noDebug && retry > 1000 {
-						fmt.Printf("[PUT] %5d (retry %v). quantity = %v. FULL! block till queue not full.\n", i, retry, rb.Quantity())
-					}
-					time.Sleep(time.Duration(retry) * time.Microsecond)
-					retry++
-					if retry > 1000 {
-						break
-					}
-					goto retryPut
-				}
-				t.Fatalf("[PUT] failed on i=%v. err: %+v.", i, err)
-			}
-
-			// t.Logf("[PUT] %5d. '%v' put, quantity = %v.", i, i, rb.Quantity())
-			// time.Sleep(50 * time.Millisecond)
-			retry = 1
-		}
-		close(d1)
-		atomic.StoreInt32(&d1Closed, 1)
-		// t.Log("[PUT] END")
-
-	}()
-
 	<-d1
 	<-d2
 
@@ -193,10 +202,149 @@ func putRandomized(t testing.TB, maxN int, queueSize uint32, opts ...func(r Ring
 
 // multiple producers
 func TestRingBuf_MPut(t *testing.T) {
-	var maxN = NLtd * 1000
-	putRandomized(t, maxN, NLtd, func(r RingBuffer) {
-		// r.Debug(true)
-	})
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	mtQueuePutGet(t, 10000, 1024*1024)
+}
+
+func mtQueuePutGet(t *testing.T, cnt int, qSize uint32) {
+	// cnt := 10000
+	sum, loops := 0, runtime.NumCPU()*4
+	// fmt.Printf("--- TEST: cnt=%v, loops=%v.\n", cnt, loops)
+	start := time.Now()
+	var putD, getD, lossTime time.Duration
+	var putRetry, getRetry int64
+	for i := 0; i <= loops; i++ {
+		sum += i * cnt
+		put, get, lt, pr, gr := mtestQueuePutGet(t, i, cnt, qSize)
+		putD += put
+		getD += get
+		getRetry += gr
+		putRetry += pr
+		lossTime += lt
+		// fmt.Printf("--- TEST %d/%d: putD = %v, getD = %v.\n", i, loops, putD, getD)
+	}
+	end := time.Now()
+	use := end.Sub(start.Add(lossTime))
+	use = putD + getD
+	// fmt.Printf("--- TEST: use = %v.\n", use)
+	op := use / time.Duration(sum)
+	t.Logf("Grp: %d, Times: %d, use: %v, %v/op", loops, sum, use, op)
+	t.Logf("Put: %d, use: %v, %v/op | retry times: %d", sum, putD, putD/time.Duration(sum), putRetry)
+	t.Logf("Get: %d, use: %v, %v/op | retry times: %d", sum, getD, getD/time.Duration(sum), getRetry)
+}
+
+func mtestQueuePutGet(t testing.TB, grp, cnt int, qSize uint32) (put, get, lossTime time.Duration, putRetries, getRetries int64) {
+	var wgPut, wgGet sync.WaitGroup
+	var putI, getI int64
+	var pc, gc int32
+	var id int32
+	var ltPutMax, ltGetMax time.Duration
+
+	// fmt.Printf("    grp: %v, cnt: %v, qSize: %v\n", grp, cnt, qSize)
+	rb := New(qSize) // , WithDebugMode(true))
+	wgPut.Add(grp)
+	wgGet.Add(grp)
+	for i := 0; i < grp; i++ {
+		// t.Logf("- [W] grp: %v, cnt: %v", grp, cnt)
+		go func(g int) {
+			defer wgPut.Done()
+			d := time.Duration(rand.Intn(1000)+10) * time.Millisecond
+			time.Sleep(d)
+			m := atomic.LoadInt64((*int64)(&ltPutMax))
+			if int64(d) > m {
+				m = int64(d) - m
+				atomic.AddInt64((*int64)(&ltPutMax), m)
+			}
+
+			var err error
+			start := time.Now()
+			for j, retry := 0, int64(1); j < cnt; j++ {
+				val := fmt.Sprintf("Node.%d.%d.%d", g, j, atomic.AddInt32(&id, 1))
+			retryPut:
+				err = rb.Enqueue(&val)
+				if err != nil {
+					if err == ErrQueueFull {
+						// block till queue not full
+						time.Sleep(time.Duration(retry) * time.Microsecond)
+						retry++
+						if retry > 1000 {
+							fmt.Printf("[W][ERR] retry failed. val=%q.\n", val)
+							break
+						}
+						goto retryPut
+					}
+					t.Fatalf("[PUT] failed on i=%v. err: %+v.", g, err)
+				}
+				atomic.AddInt32(&pc, 1)
+				atomic.AddInt64(&putRetries, retry-1)
+				retry = 1
+			}
+			// fmt.Printf("[W] i/grp: %v. done.\n", g)
+			end := time.Now()
+			putTime := end.Sub(start)
+			atomic.AddInt64(&putI, int64(putTime))
+		}(i)
+	}
+
+	// fmt.Printf("[R] -------------- grp: %v...\n", grp)
+	for i := 0; i < grp; i++ {
+		// t.Logf("- [R] i: %v, grp: %v, cnt: %v", i, grp, cnt)
+		go func(g int) {
+			defer wgGet.Done()
+			d := time.Duration(rand.Intn(1500)+1500) * time.Millisecond
+			time.Sleep(d)
+			m := atomic.LoadInt64((*int64)(&ltGetMax))
+			if int64(d) > m {
+				m = int64(d) - m
+				atomic.AddInt64((*int64)(&ltGetMax), m)
+			}
+
+			var err error
+			start := time.Now()
+			for j, retry := 0, int64(1); j < cnt; j++ {
+			retryGet:
+				_, err = rb.Dequeue()
+				if err != nil {
+					if err == ErrQueueEmpty {
+						// block till queue not empty
+						retry++
+						if retry > 2000 {
+							fmt.Printf("[R][ERR] retry failed. grp=%v, j=%v, cnt=%v.\n", g, j, cnt)
+							break
+						}
+						time.Sleep(time.Duration(retry) * time.Microsecond)
+						goto retryGet
+					}
+					t.Fatalf("[GET] failed on i=%v. err: %+v.", g, err)
+				}
+				atomic.AddInt32(&gc, 1)
+				atomic.AddInt64(&getRetries, retry-1)
+				retry = 1
+			}
+			// fmt.Printf("[R] i/grp: %v. done.\n", g)
+			end := time.Now()
+			getTime := end.Sub(start)
+			atomic.AddInt64(&getI, int64(getTime))
+		}(i)
+	}
+
+	wgGet.Wait()
+	wgPut.Wait()
+
+	lossTime += ltPutMax
+	lossTime += ltGetMax
+
+	if pc != gc {
+		t.Errorf("put count (%v) != get count (%v)", pc, gc)
+	}
+	if q := rb.Quantity(); q != 0 {
+		t.Errorf("Grp:%v, Quantity Error: [%v] <>[%v]", grp, q, 0)
+	}
+
+	put, get = time.Duration(putI), time.Duration(getI)
+
+	// fmt.Printf("    [R] -------------- grp: %v END (put:%v, get: %v).\n", grp, put, get)
+	return
 }
 
 //
@@ -207,8 +355,6 @@ func TestRingBuf_MPut(t *testing.T) {
 func TestQueuePutGet(t *testing.T) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	tQueuePutGet(t, 10000, 1024*1024)
-	ticker := time.NewTicker(5 * time.Minute)
-	ticker.Stop()
 }
 
 // // go test ./ringbuf/rb -v -race -run 'TestQueuePutGet'

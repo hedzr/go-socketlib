@@ -3,10 +3,10 @@ package rb
 import (
 	"fmt"
 	"go.uber.org/zap"
-	"golang.org/x/sys/cpu"
 	"io"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 type (
@@ -48,9 +48,10 @@ type (
 		capModMask uint32
 		head       uint32
 		tail       uint32
-		data       []rbItem
 		putWaits   uint64
 		getWaits   uint64
+		_          [CacheLinePadSize - 8 - 8 - 4*4]byte
+		data       []rbItem
 		debugMode  bool
 		logger     *zap.Logger
 		// _         cpu.CacheLinePad
@@ -59,7 +60,8 @@ type (
 	rbItem struct {
 		readWrite uint64      // 0: writable, 1: readable, 2: write ok, 3: read ok
 		value     interface{} // ptr
-		_         cpu.CacheLinePad
+		_         [CacheLinePadSize - 8 - 8]byte
+		// _         cpu.CacheLinePad
 	}
 
 	ringer struct {
@@ -76,13 +78,13 @@ func (rb *ringBuf) Put(item interface{}) (err error) {
 func (rb *ringBuf) Enqueue(item interface{}) (err error) {
 	var tail, head, nt uint32
 	var holder *rbItem
-	// var quard uint64
-	// quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
-	// head = (uint32)(quard & MaxUint32_64)
-	// tail = (uint32)(quard >> 32)
 	for {
-		head = atomic.LoadUint32(&rb.head)
-		tail = atomic.LoadUint32(&rb.tail)
+		var quad uint64
+		quad = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
+		head = (uint32)(quad & MaxUint32_64)
+		tail = (uint32)(quad >> 32)
+		// head = atomic.LoadUint32(&rb.head)
+		// tail = atomic.LoadUint32(&rb.tail)
 		nt = (tail + 1) & rb.capModMask
 
 		isFull := nt == head
@@ -93,22 +95,14 @@ func (rb *ringBuf) Enqueue(item interface{}) (err error) {
 
 		holder = &rb.data[tail]
 
-		// tag := atomic.LoadUint32(&holder.readWrite)
-
 		if atomic.CompareAndSwapUint64(&holder.readWrite, 0, 2) {
+			holder.value = item
+			atomic.CompareAndSwapUint32(&rb.tail, tail, nt)
 			break
 		}
 
-		// err = fmt.Errorf("[W] %w, 0=>2, %v", ErrRaced, holder.readWrite)
-		// return
 		time.Sleep(1 * time.Nanosecond)
 		atomic.AddUint64(&rb.putWaits, 1)
-	}
-
-	holder.value = item
-	if !atomic.CompareAndSwapUint32(&rb.tail, tail, nt) {
-		err = fmt.Errorf("%w, tail: %v=>%v", ErrRaced, tail, nt)
-		return
 	}
 
 	if !atomic.CompareAndSwapUint64(&holder.readWrite, 2, 1) {
@@ -128,15 +122,15 @@ func (rb *ringBuf) Get() (item interface{}, err error) {
 }
 
 func (rb *ringBuf) Dequeue() (item interface{}, err error) {
-	var tail, head uint32
+	var tail, head, nh uint32
 	var holder *rbItem
-	// var quard uint64
-	// quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
-	// head = (uint32)(quard & MaxUint32_64)
-	// tail = (uint32)(quard >> 32)
 	for {
-		head = atomic.LoadUint32(&rb.head)
-		tail = atomic.LoadUint32(&rb.tail)
+		var quad uint64
+		quad = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
+		head = (uint32)(quad & MaxUint32_64)
+		tail = (uint32)(quad >> 32)
+		// head = atomic.LoadUint32(&rb.head)
+		// tail = atomic.LoadUint32(&rb.tail)
 
 		isEmpty := head == tail
 		if isEmpty {
@@ -146,22 +140,37 @@ func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 
 		holder = &rb.data[head]
 
-		// tag := atomic.LoadUint32(&holder.readWrite)
 		if atomic.CompareAndSwapUint64(&holder.readWrite, 1, 3) {
+			// cnt := 0
+			// for {
+			// 	item = holder.value
+			// 	nh = (head + 1) & rb.capModMask
+			// 	if atomic.CompareAndSwapUint32(&rb.head, head, nh) {
+			// 		break
+			// 	}
+			//
+			// 	// err = fmt.Errorf("[R] %w, head: %v=>%v", ErrRaced, head, nh)
+			// 	// return
+			//
+			// 	time.Sleep(1 * time.Nanosecond)
+			// 	atomic.AddUint64(&rb.getWaits, 1)
+			//
+			// 	cnt++
+			// 	if cnt > 100 {
+			// 		atomic.CompareAndSwapUint64(&holder.readWrite, 3, 1)
+			// 		err = fmt.Errorf("[R] %w, head: %v => %v, tail: %v, 100 retried/getWaits=%v", ErrRaced, head, nh, tail, rb.getWaits)
+			// 		return
+			// 	}
+			// }
+
+			item = holder.value
+			nh = (head + 1) & rb.capModMask
+			atomic.CompareAndSwapUint32(&rb.head, head, nh)
 			break
 		}
 
-		// err = fmt.Errorf("%w, 1=>3, %v", ErrRaced, holder.readWrite)
-		// return
 		time.Sleep(1 * time.Nanosecond)
 		atomic.AddUint64(&rb.getWaits, 1)
-	}
-
-	item = holder.value
-	nh := (head + 1) & rb.capModMask
-	if !atomic.CompareAndSwapUint32(&rb.head, head, nh) {
-		err = fmt.Errorf("%w, head: %v=>%v", ErrRaced, head, nh)
-		return
 	}
 
 	// if rb.debugMode {
@@ -169,11 +178,13 @@ func (rb *ringBuf) Dequeue() (item interface{}, err error) {
 	// }
 
 	if !atomic.CompareAndSwapUint64(&holder.readWrite, 3, 0) {
-		err = fmt.Errorf("%w, 3=>0, %v", ErrRaced, holder.readWrite)
+		err = fmt.Errorf("[R] %w, 3=>0, %v", ErrRaced, holder.readWrite)
 		return
 	}
 
 	if item == nil {
+		err = fmt.Errorf("[ringbuf][GET] cap: %v, qty: %v, head: %v, tail: %v, new head: %v", rb.cap, rb.qty(head, tail), head, tail, nh)
+
 		if !rb.debugMode {
 			rb.logger.Warn("[ringbuf][GET] ", zap.Uint32("cap", rb.cap), zap.Uint32("qty", rb.qty(head, tail)), zap.Uint32("tail", tail), zap.Uint32("head", head), zap.Uint32("new head", nh))
 		}

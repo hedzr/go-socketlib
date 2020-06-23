@@ -51,6 +51,7 @@ func WithDebugMode(debug bool) Opt {
 	}
 }
 
+// Dbg exposes some internal fields for debugging
 type Dbg interface {
 	GetGetWaits() uint64
 	GetPutWaits() uint64
@@ -97,10 +98,10 @@ func (rb *ringBuf) Size() uint32 {
 	// head = atomic.LoadUint32(&rb.head)
 	// tail = atomic.LoadUint32(&rb.tail)
 	var tail, head uint32
-	var quard uint64
-	quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
-	head = (uint32)(quard & MaxUint32_64)
-	tail = (uint32)(quard >> 32)
+	var quad uint64
+	quad = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
+	head = (uint32)(quad & MaxUint32_64)
+	tail = (uint32)(quad >> 32)
 
 	if tail >= head {
 		quantity = tail - head
@@ -117,10 +118,10 @@ func (rb *ringBuf) Cap() uint32 {
 
 func (rb *ringBuf) IsEmpty() (b bool) {
 	var tail, head uint32
-	var quard uint64
-	quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
-	head = (uint32)(quard & MaxUint32_64)
-	tail = (uint32)(quard >> 32)
+	var quad uint64
+	quad = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
+	head = (uint32)(quad & MaxUint32_64)
+	tail = (uint32)(quad >> 32)
 	// var tail, head uint32
 	// head = atomic.LoadUint32(&rb.head)
 	// tail = atomic.LoadUint32(&rb.tail)
@@ -130,10 +131,10 @@ func (rb *ringBuf) IsEmpty() (b bool) {
 
 func (rb *ringBuf) IsFull() (b bool) {
 	var tail, head uint32
-	var quard uint64
-	quard = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
-	head = (uint32)(quard & MaxUint32_64)
-	tail = (uint32)(quard >> 32)
+	var quad uint64
+	quad = atomic.LoadUint64((*uint64)(unsafe.Pointer(&rb.head)))
+	head = (uint32)(quad & MaxUint32_64)
+	tail = (uint32)(quad >> 32)
 	// var tail, head uint32
 	// head = atomic.LoadUint32(&rb.head)
 	// tail = atomic.LoadUint32(&rb.tail)
