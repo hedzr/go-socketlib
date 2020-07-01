@@ -5,7 +5,7 @@
 package tcp
 
 import (
-	"github.com/hedzr/socketlib/ringbuf"
+	"github.com/hedzr/ringbuf/ringbuf"
 	"github.com/sirupsen/logrus"
 )
 
