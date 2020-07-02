@@ -7,8 +7,8 @@ package tcp
 import (
 	"bufio"
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/socketlib/tcp/tls"
-	"github.com/hedzr/socketlib/trace"
+	"github.com/hedzr/go-socketlib/tcp/tls"
+	"github.com/hedzr/go-socketlib/trace"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net"

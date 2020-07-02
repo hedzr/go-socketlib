@@ -5,7 +5,7 @@
 package tcp
 
 import (
-	"github.com/hedzr/socketlib/logger"
+	"github.com/hedzr/go-socketlib/logger"
 )
 
 type base struct{ logger.Base }

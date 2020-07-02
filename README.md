@@ -7,7 +7,7 @@
 ### Import
 
 ```go
-import "github.com/hedzr/socketlib"
+import "github.com/hedzr/go-socketlib"
 ```
 
 ### Write a TCP server

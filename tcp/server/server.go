@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/hedzr/cmdr"
-	tls2 "github.com/hedzr/socketlib/tcp/tls"
+	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/sirupsen/logrus"
 	"net"
 	"os"

@@ -6,7 +6,7 @@ package tcp
 
 import (
 	"bufio"
-	"github.com/hedzr/socketlib/tcp/tls"
+	"github.com/hedzr/go-socketlib/tcp/tls"
 	"io"
 	"net"
 	"strconv"

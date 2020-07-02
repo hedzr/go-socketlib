@@ -5,7 +5,7 @@
 package tcp
 
 import (
-	"github.com/hedzr/socketlib/tcp/tls"
+	"github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/sirupsen/logrus"
 )
 
