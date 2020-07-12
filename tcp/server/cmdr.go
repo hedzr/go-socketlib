@@ -6,10 +6,25 @@ package server
 
 import (
 	"github.com/hedzr/cmdr"
-	mqtool "gitlab.com/hedzr/mqttlib"
 )
 
-func AttachToCmdr(tcp cmdr.OptCmd) {
+const (
+	DefaultPort = 8883
+)
+
+type Opt func(*builder)
+
+type builder struct {
+	port int
+}
+
+func WithPort(port int) Opt {
+	return func(b *builder) {
+		b.port = port
+	}
+}
+
+func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	// tcp := root.NewSubCommand().
 	// 	Titles("t", "tcp").
 	// 	Description("", "").
@@ -18,12 +33,19 @@ func AttachToCmdr(tcp cmdr.OptCmd) {
 	// // 	return
 	// // })
 
+	b := &builder{
+		port: DefaultPort,
+	}
+	for _, opt := range opts {
+		opt(b)
+	}
+
 	tcpServer := tcp.NewSubCommand("server", "s").
 		Description("TCP Server Operations").
 		Group("Test").
 		Action(serverRun)
 
-	tcpServer.NewFlagV(mqtool.DefaultPort, "port", "p").
+	tcpServer.NewFlagV(b.port, "port", "p").
 		Description("The port to listen on").
 		Group("Test").
 		Placeholder("PORT")
@@ -33,16 +55,19 @@ func AttachToCmdr(tcp cmdr.OptCmd) {
 		Group("Test").
 		Placeholder("HOST-or-IP")
 
-	tcpServer.NewFlagV("", "cafile", "ca").
+	tcpServer.NewFlagV(false, "enable-tls", "tls").
+		Description("enable TLS mode").
+		Group("TLS")
+	
+	tcpServer.NewFlagV("root.pem", "cacert", "ca", "ca-cert").
 		Description("CA cert path (.cer,.crt,.pem) if it's standalone").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpServer.NewFlagV("").
-		Titles("", "cert").
+	tcpServer.NewFlagV("cert.pem", "cert", "c").
 		Description("server public-cert path (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpServer.NewFlagV("", "key").
+	tcpServer.NewFlagV("cert.key", "key", "k").
 		Description("server private-key path (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")

@@ -6,8 +6,11 @@ package client
 
 import (
 	"github.com/hedzr/cmdr"
-	mqtool "gitlab.com/hedzr/mqttlib"
 	"time"
+)
+
+const (
+	DefaultPort = 8883
 )
 
 func AttachToCmdr(tcp cmdr.OptCmd) {
@@ -24,7 +27,7 @@ func AttachToCmdr(tcp cmdr.OptCmd) {
 		Group("Test").
 		Action(run)
 
-	tcpClient.NewFlagV(mqtool.DefaultPort, "port", "p").
+	tcpClient.NewFlagV(DefaultPort, "port", "p").
 		Description("The port to connect to").
 		Group("Test").
 		Placeholder("PORT")

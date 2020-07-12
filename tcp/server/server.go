@@ -29,37 +29,50 @@ import (
 // 6. IPv4, IPv6, tcp, udp 全模态支持
 
 func serverRun(cmd *cmdr.Command, args []string) (err error) {
-	fmt.Println("Starting server...")
+	fmt.Printf("Starting server... cmdr.InDebugging = %v\n", cmdr.InDebugging())
 
-	prefix := "tcp.server"
+	prefixInCommandLine := cmd.GetDottedNamePath()
+	prefixInConfigFile := "tcp.server"
 
 	// src := fmt.Sprintf("%s:%v", cmdr.GetStringR("tcp.server.addr"), cmdr.GetIntR("tcp.server.port"))
 
 	var addr, host, port string
-	host, port, err = net.SplitHostPort(cmdr.GetStringRP(prefix, "addr"))
-	if err != nil {
-		logrus.Errorf("get broker address failed: %v", err)
-		return
-	}
+	host, port, err = net.SplitHostPort(cmdr.GetStringRP(prefixInConfigFile, "addr"))
+	//if err != nil {
+	//	logrus.Errorf("get broker address failed: %v", err)
+	//	return
+	//}
 	if port == "" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(prefix, "port"), 10)
+		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInConfigFile, "ports.default"), 10)
+	}
+	if port == "0" {
+		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInCommandLine, "port", 1024), 10)
+		if port == "0" {
+			logrus.Fatalf("invalid port number: %q", port)
+		}
 	}
 	addr = net.JoinHostPort(host, port)
 
 	var listener net.Listener
+	var tlsListener net.Listener
 	listener, err = net.Listen("tcp", addr)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	ctcPrefix := "tcp.server.tls"
-	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefix)
-	listener, err = ctc.NewTlsListener(listener)
+	ctcPrefix := prefixInConfigFile + ".tls"
+	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
+	tlsListener, err = ctc.NewTlsListener(listener)
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	if tlsListener != nil {
+		listener = tlsListener
+		fmt.Printf("Listening on %s with TLS enabled.\n", addr)
+	} else {
+		fmt.Printf("Listening on %s.\n", addr)
+	}
 
-	fmt.Printf("Listening on %s.\n", addr)
 	defer listener.Close()
 	for {
 		conn, err := listener.Accept()

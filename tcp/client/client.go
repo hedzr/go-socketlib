@@ -21,8 +21,10 @@ import (
 
 func run(cmd *cmdr.Command, args []string) (err error) {
 	done := make(chan bool, 1)
+	
 	if cmdr.GetBool("interactive", cmdr.GetBoolR("tcp.client.interactive")) {
 		err = clientRun(cmd, args)
+		
 	} else {
 		dest := fmt.Sprintf("%s:%v", cmdr.GetStringR("tcp.client.host"), cmdr.GetIntR("tcp.client.port"))
 		maxTimes := cmdr.GetIntR("tcp.client.times")

@@ -11,6 +11,7 @@ import (
 	"syscall"
 )
 
+// IsCaredNetError detects an error if it should be cared by socketlib
 func IsCaredNetError(err error) bool {
 	netErr, ok := err.(net.Error)
 	if !ok {

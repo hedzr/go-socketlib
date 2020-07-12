@@ -17,10 +17,6 @@ type Base struct {
 	// logrus.Entry
 }
 
-func silent() bool {
-	return cmdr.GetBoolR("quiet")
-}
-
 // WithError creates an entry from the standard logger and adds an error to it, using the value defined in ErrorKey as key.
 func WithError(err error) *logrus.Entry {
 	return logrus.WithError(err)

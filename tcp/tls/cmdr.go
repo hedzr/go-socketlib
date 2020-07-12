@@ -54,6 +54,12 @@ func (s *CmdrTlsConfig) IsClientAuthValid() bool {
 func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	var b bool
 	var sz string
+	
+	b = cmdr.GetBoolRP(prefix, "enable-tls")
+	if !b {
+		return
+	}
+
 	b = cmdr.GetBoolRP(prefix, "client-auth")
 	if b {
 		s.ClientAuth = b
@@ -71,7 +77,7 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 		s.Key = sz
 	}
 
-	for _, loc := range cmdr.GetStringSliceRP(prefix, "locations") {
+	for _, loc := range cmdr.GetStringSliceRP(prefix, "locations", "./ci/certs", "$CFG_DIR/certs") {
 		if s.Cacert != "" && cmdr.FileExists(path.Join(loc, s.Cacert)) {
 			s.Cacert = path.Join(loc, s.Cacert)
 		} else if s.Cacert != "" {
@@ -111,8 +117,8 @@ func (s *CmdrTlsConfig) InitTlsConfigFromConfigFile(prefix string) {
 	//   locations:
 	// 	   - ./ci/certs
 	// 	   - $CFG_DIR/certs
-	enabled := cmdr.GetBoolRP(prefix, "enabled")
-	if enabled {
+	s.Enabled = cmdr.GetBoolRP(prefix, "enabled")
+	if s.Enabled {
 		s.ClientAuth = cmdr.GetBoolRP(prefix, "client-auth")
 		s.Cacert = cmdr.GetStringRP(prefix, "cacert")
 		s.Cert = cmdr.GetStringRP(prefix, "cert")

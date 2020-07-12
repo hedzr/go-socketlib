@@ -13,6 +13,10 @@ import (
 	"strings"
 )
 
+func silent() bool {
+	return cmdr.GetBoolR("quiet")
+}
+
 func EarlierInitLogger() {
 	l := "OFF"
 	if cmdr.InDebugging() {
