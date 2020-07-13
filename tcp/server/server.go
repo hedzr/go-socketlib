@@ -62,9 +62,12 @@ func serverRun(cmd *cmdr.Command, args []string) (err error) {
 
 	ctcPrefix := prefixInConfigFile + ".tls"
 	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
-	tlsListener, err = ctc.NewTlsListener(listener)
-	if err != nil {
-		logrus.Fatal(err)
+	logrus.Debugf("%v", ctc)
+	if ctc.Enabled {
+		tlsListener, err = ctc.NewTlsListener(listener)
+		if err != nil {
+			logrus.Fatal(err)
+		}
 	}
 	if tlsListener != nil {
 		listener = tlsListener
