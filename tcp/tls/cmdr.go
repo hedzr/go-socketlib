@@ -7,12 +7,14 @@ package tls
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
 	"net"
 	"path"
+	"strings"
 )
 
 func NewCmdrTlsConfig(prefixInConfigFile, prefixInCommandline string) *CmdrTlsConfig {
@@ -30,13 +32,30 @@ func NewCmdrTlsConfig(prefixInConfigFile, prefixInCommandline string) *CmdrTlsCo
 // For server-side, the `Cert` field must be a bundle of server certificates with all root CAs chain.
 // For server-side, the `Cacert` is optional for extra client CA's.
 type CmdrTlsConfig struct {
-	Enabled       bool
-	Cacert        string // server-side: optional server's CA;   client-side: client's CA
-	ServerCert    string //                                      client-side: the server's cert
-	Cert          string // server-side: server's cert bundle;   client-side: client's cert
-	Key           string // server-side: server's key;           client-side: client's key
-	ClientAuth    bool
-	MinTlsVersion uint16
+	Enabled            bool   // Both
+	Cacert             string // server-side: optional server's CA;   client-side: client's CA
+	ServerCert         string //                                      client-side: the server's cert
+	Cert               string // server-side: server's cert bundle;   client-side: client's cert
+	Key                string // server-side: server's key;           client-side: client's key
+	ClientAuth         bool   // Both
+	InsecureSkipVerify bool   // client-side only
+	MinTlsVersion      uint16 // Both
+}
+
+func (s *CmdrTlsConfig) String() string {
+	var sb strings.Builder
+	sb.WriteString("[CmdrTlsConfig: ")
+	sb.WriteString(fmt.Sprintf("Enabled: %v", s.Enabled))
+	if s.Enabled {
+		sb.WriteString(fmt.Sprintf(", CA cert: %v", s.Cacert))
+		sb.WriteString(fmt.Sprintf(", Server cert (client-side): %v", s.ServerCert))
+		sb.WriteString(fmt.Sprintf(", Server cert bundle/Client cert: %v", s.Cert))
+		sb.WriteString(fmt.Sprintf(", Server/Client key: %v", s.Key))
+		sb.WriteString(fmt.Sprintf(", Client Auth: %v", s.ClientAuth))
+		sb.WriteString(fmt.Sprintf(", Min TLS: %v", s.MinTlsVersion))
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 func (s *CmdrTlsConfig) IsServerCertValid() bool {
@@ -54,9 +73,9 @@ func (s *CmdrTlsConfig) IsClientAuthValid() bool {
 func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	var b bool
 	var sz string
-	
-	b = cmdr.GetBoolRP(prefix, "enable-tls")
-	if !b {
+
+	s.Enabled = cmdr.GetBoolRP(prefix, "enable-tls")
+	if !s.Enabled {
 		return
 	}
 
@@ -72,6 +91,14 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	if sz != "" {
 		s.Cert = sz
 	}
+	sz = cmdr.GetStringRP(prefix, "server-cert")
+	if sz != "" {
+		s.ServerCert = sz
+	}
+	b = cmdr.GetBoolRP(prefix, "insecure")
+	if b {
+		s.InsecureSkipVerify = b
+	}
 	sz = cmdr.GetStringRP(prefix, "key")
 	if sz != "" {
 		s.Key = sz
@@ -82,6 +109,9 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 			s.Cacert = path.Join(loc, s.Cacert)
 		} else if s.Cacert != "" {
 			continue
+		}
+		if s.ServerCert != "" && cmdr.FileExists(path.Join(loc, s.ServerCert)) {
+			s.ServerCert = path.Join(loc, s.ServerCert)
 		}
 		if s.Cert != "" && cmdr.FileExists(path.Join(loc, s.Cert)) {
 			s.Cert = path.Join(loc, s.Cert)
@@ -273,10 +303,11 @@ func (s *CmdrTlsConfig) Dial(network, addr string) (conn net.Conn, err error) {
 				return
 			}
 			cfg.Certificates = []tls.Certificate{cert}
-			cfg.InsecureSkipVerify = true
 		}
 
-		logrus.Printf("Connecting to %s over TLS...\n", addr)
+		cfg.InsecureSkipVerify = s.InsecureSkipVerify
+
+		logrus.Printf("Connecting to %s over TLS [-k=%v]...\n", addr, cfg.InsecureSkipVerify)
 		// Use the tls.Config here in http.Transport.TLSClientConfig
 		conn, err = tls.Dial(network, addr, cfg)
 	} else {
