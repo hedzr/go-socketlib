@@ -21,19 +21,20 @@ import (
 
 func run(cmd *cmdr.Command, args []string) (err error) {
 	done := make(chan bool, 1)
-	
-	if cmdr.GetBool("interactive", cmdr.GetBoolR("tcp.client.interactive")) {
+	prefixInCommandLine := cmd.GetDottedNamePath()
+
+	if cmdr.GetBool("interactive", cmdr.GetBoolRP(prefixInCommandLine, "interactive")) {
 		err = clientRun(cmd, args)
-		
+
 	} else {
-		dest := fmt.Sprintf("%s:%v", cmdr.GetStringR("tcp.client.host"), cmdr.GetIntR("tcp.client.port"))
-		maxTimes := cmdr.GetIntR("tcp.client.times")
-		parallel := cmdr.GetIntR("tcp.client.parallel")
-		sleep := cmdr.GetDurationR("tcp.client.sleep")
+		dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
+		maxTimes := cmdr.GetIntRP(prefixInCommandLine, "times")
+		parallel := cmdr.GetIntRP(prefixInCommandLine, "parallel")
+		sleep := cmdr.GetDurationRP(prefixInCommandLine, "sleep")
 		var wg sync.WaitGroup
 		wg.Add(parallel)
 		for x := 0; x < parallel; x++ {
-			go clientRunner(x, dest, maxTimes, sleep, &wg)
+			go clientRunner(prefixInCommandLine, x, dest, maxTimes, sleep, &wg)
 		}
 		wg.Wait()
 
@@ -51,7 +52,7 @@ func randRandSeq() string {
 	return tool.RandSeqln(n)
 }
 
-func clientRunner(tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup) {
+func clientRunner(prefixCLI string, tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup) {
 	var (
 		err  error
 		conn net.Conn
@@ -59,8 +60,10 @@ func clientRunner(tid int, dest string, maxTimes int, sleep time.Duration, wg *s
 	defer wg.Done()
 
 	prefix := "tcp.client.tls"
-	prefixCLI := "tcp.client"
+	// prefixCLI := "tcp.client"
 	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
+	logrus.Debug(ctc)
+	logrus.Debug("dest: ", dest)
 	conn, err = ctc.Dial("tcp", dest)
 
 	if err != nil {
@@ -122,7 +125,8 @@ var mqttSubscribe2TopicsPkg = []byte{
 }
 
 func clientRun(cmd *cmdr.Command, args []string) (err error) {
-	dest := fmt.Sprintf("%s:%v", cmdr.GetStringR("tcp.client.host"), cmdr.GetIntR("tcp.client.port"))
+	prefixInCommandLine := cmd.GetDottedNamePath()
+	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
 	fmt.Printf("Connecting to %s...\n", dest)
 
 	var conn net.Conn

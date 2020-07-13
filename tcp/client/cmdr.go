@@ -13,7 +13,19 @@ const (
 	DefaultPort = 8883
 )
 
-func AttachToCmdr(tcp cmdr.OptCmd) {
+type Opt func(*builder)
+
+type builder struct {
+	port int
+}
+
+func WithPort(port int) Opt {
+	return func(b *builder) {
+		b.port = port
+	}
+}
+
+func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	// tcp := root.NewSubCommand().
 	// 	Titles("t", "tcp").
 	// 	Description("", "").
@@ -22,12 +34,19 @@ func AttachToCmdr(tcp cmdr.OptCmd) {
 	// // 	return
 	// // })
 
+	b := &builder{
+		port: DefaultPort,
+	}
+	for _, opt := range opts {
+		opt(b)
+	}
+
 	tcpClient := tcp.NewSubCommand("client", "c").
 		Description("TCP client operations").
 		Group("Test").
 		Action(run)
 
-	tcpClient.NewFlagV(DefaultPort, "port", "p").
+	tcpClient.NewFlagV(b.port, "port", "p").
 		Description("The port to connect to").
 		Group("Test").
 		Placeholder("PORT")
@@ -56,20 +75,31 @@ func AttachToCmdr(tcp cmdr.OptCmd) {
 		Description("run client in interactive mode").
 		Group("Test")
 
-	tcpClient.NewFlagV("", "cafile", "ca").
+	tcpClient.NewFlagV(false, "enable-tls", "tls").
+		Description("enable TLS mode").
+		Group("TLS")
+
+	tcpClient.NewFlagV("root.pem", "cacert", "ca").
 		Description("CA cert path (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpClient.NewFlagV("", "cert").
-		Description("client public-cert path for dual auth (.cer,.crt,.pem)").
+	tcpClient.NewFlagV("cert.pem", "server-cert", "sc").
+		Description("server public-cert path for dual auth (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpClient.NewFlagV("", "key").
-		Description("client private-key path for dual auth (.cer,.crt,.pem)").
+	tcpClient.NewFlagV("client.pem", "cert").
+		Description("[client-auth] client public-cert path for dual auth (.cer,.crt,.pem)").
+		Group("TLS").
+		Placeholder("PATH")
+	tcpClient.NewFlagV("client.key", "key").
+		Description("[client-auth] client private-key path for dual auth (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
 	tcpClient.NewFlagV(false, "client-auth").
-		Description("enable client cert authentication").
+		Description("[client-auth] enable client cert authentication").
+		Group("TLS")
+	tcpClient.NewFlagV(false, "insecure", "k").
+		Description("[client-auth] ignore server cert validation (for self-signed server)").
 		Group("TLS")
 	tcpClient.NewFlagV(2, "tls-version").
 		Description("tls-version: 0,1,2,3").
