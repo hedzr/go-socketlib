@@ -11,6 +11,7 @@ import (
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tool"
 	"github.com/sirupsen/logrus"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -78,7 +79,8 @@ func clientRunner(prefixCLI string, tid int, dest string, maxTimes int, sleep ti
 		return
 	}
 
-	go readConnection(conn)
+	co := newClientObj(conn)
+	go co.readConnection()
 
 	for i := 0; i < maxTimes; i++ {
 		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
@@ -95,7 +97,7 @@ func clientRunner(prefixCLI string, tid int, dest string, maxTimes int, sleep ti
 			logrus.Errorf("[%d] failed to write to stream: %v", tid, err)
 			break
 		}
-		logrus.Debug(i, ", ")
+		logrus.Debug(" #", i, ", ")
 		if sleep > 0 {
 			time.Sleep(sleep)
 		}
@@ -130,7 +132,14 @@ func clientRun(cmd *cmdr.Command, args []string) (err error) {
 	fmt.Printf("Connecting to %s...\n", dest)
 
 	var conn net.Conn
-	conn, err = net.Dial("tcp", dest)
+	//conn, err = net.Dial("tcp", dest)
+
+	prefix := "tcp.client.tls"
+	// prefixCLI := "tcp.client"
+	ctc := tls2.NewCmdrTlsConfig(prefix, prefixInCommandLine)
+	logrus.Debug(ctc)
+	logrus.Debug("dest: ", dest)
+	conn, err = ctc.Dial("tcp", dest)
 
 	if err != nil {
 		if _, t := err.(*net.OpError); t {
@@ -141,29 +150,7 @@ func clientRun(cmd *cmdr.Command, args []string) (err error) {
 		os.Exit(1)
 	}
 
-	go readConnection(conn)
-
-	fmt.Println("type 'quit' to exit client, '/quit' to exit both server and client.")
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("> ")
-		text, _ := reader.ReadString('\n')
-
-		if text == "quit\n" || text == "exit\n" {
-			break
-		}
-
-		err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-		if err != nil {
-			fmt.Println("Error set writing deadline.")
-			break
-		}
-		_, err = conn.Write([]byte(text))
-		if err != nil {
-			fmt.Println("Error writing to stream.")
-			break
-		}
-	}
+	newClientObj(conn).run()
 
 	return
 }
@@ -205,11 +192,69 @@ func clientRun(cmd *cmdr.Command, args []string) (err error) {
 // 	}
 // }
 
-func readConnection(conn net.Conn) {
-	for {
-		scanner := bufio.NewScanner(conn)
+func newClientObj(conn net.Conn) (c *clientObj) {
+	c = &clientObj{
+		conn:    conn,
+		quiting: false,
+	}
+	return
+}
 
-		for {
+type clientObj struct {
+	conn     net.Conn
+	quiting  bool
+	closeErr error
+}
+
+func (c *clientObj) Close() {
+	if c.conn != nil {
+		c.closeErr = c.conn.Close()
+		c.conn = nil
+	}
+}
+
+func (c *clientObj) run() {
+	go c.readConnection()
+
+	fmt.Println("type 'quit' to exit client, '/quit' to exit both server and client.")
+	defer c.Close()
+	for c.quiting == false {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("> ")
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF && c.quiting {
+				break
+			}
+			logrus.Errorf("TCP i/o read failed: %v", err)
+		}
+
+		if text == "quit\n" || text == "exit\n" {
+			break
+		}
+
+		if text == "/quit\n" {
+			c.quiting = true
+		}
+
+		err = c.conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+		if err != nil {
+			fmt.Println("Error set writing deadline.")
+			break
+		}
+		_, err = c.conn.Write([]byte(text))
+		if err != nil {
+			fmt.Println("Error writing to stream.")
+			break
+		}
+	}
+}
+
+func (c *clientObj) readConnection() {
+	for {
+		scanner := bufio.NewScanner(c.conn)
+
+		for c.quiting == false {
 			ok := scanner.Scan()
 			text := scanner.Text()
 
@@ -219,6 +264,9 @@ func readConnection(conn net.Conn) {
 			}
 
 			if !ok {
+				if c.quiting {
+					return
+				}
 				fmt.Println("Reached EOF on server connection.")
 				break
 			}

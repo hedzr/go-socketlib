@@ -15,10 +15,6 @@ const (
 
 type Opt func(*builder)
 
-type builder struct {
-	port int
-}
-
 func WithPort(port int) Opt {
 	return func(b *builder) {
 		b.port = port
@@ -41,11 +37,24 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 		opt(b)
 	}
 
+	tc2 := tcp.NewSubCommand("interactive-client", "ic").
+		Description("TCP interactive client operations").
+		Group("Test").
+		Action(clientRun)
+	b.attachTcpClientFlags(tc2)
+
 	tcpClient := tcp.NewSubCommand("client", "c").
 		Description("TCP client operations").
 		Group("Test").
 		Action(run)
+	b.attachTcpClientFlags(tcpClient)
+}
 
+type builder struct {
+	port int
+}
+
+func (b *builder) attachTcpClientFlags(tcpClient cmdr.OptCmd) {
 	tcpClient.NewFlagV(b.port, "port", "p").
 		Description("The port to connect to").
 		Group("Test").
