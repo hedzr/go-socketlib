@@ -9,16 +9,23 @@ import (
 	"time"
 )
 
-type connObj struct {
-	serverObj *serverObj
+type ConnectionObj interface {
+	Close()
+	HandleConnection(ctx context.Context)
+	WriteString(message string)
+	Write(message []byte)
+}
+
+type connectionObj struct {
+	serverObj *Obj
 	conn      net.Conn
 	wrCh      chan []byte
 	exitCh    chan struct{}
 	closeErr  error
 }
 
-func newConnObj(serverObj *serverObj, conn net.Conn) (s *connObj) {
-	s = &connObj{
+func newConnObj(serverObj *Obj, conn net.Conn) (s *connectionObj) {
+	s = &connectionObj{
 		serverObj: serverObj,
 		conn:      conn,
 		wrCh:      make(chan []byte, 256),
@@ -27,7 +34,7 @@ func newConnObj(serverObj *serverObj, conn net.Conn) (s *connObj) {
 	return
 }
 
-func (s *connObj) Close() {
+func (s *connectionObj) Close() {
 	if s.conn != nil {
 		s.closeErr = s.conn.Close()
 		s.conn = nil
@@ -36,11 +43,7 @@ func (s *connObj) Close() {
 	close(s.exitCh)
 }
 
-func (s *connObj) RemoteAddrString() string {
-	return s.conn.RemoteAddr().String()
-}
-
-func (s *connObj) handleConnection(ctx context.Context) {
+func (s *connectionObj) HandleConnection(ctx context.Context) {
 	fmt.Println("Client connected from " + s.RemoteAddrString())
 
 	go s.handleWriteRequests()
@@ -58,7 +61,7 @@ func (s *connObj) handleConnection(ctx context.Context) {
 	fmt.Println("Client at " + s.RemoteAddrString() + " disconnected.")
 }
 
-func (s *connObj) handleMessage(msg []byte) {
+func (s *connectionObj) handleMessage(msg []byte) {
 	message := string(msg)
 	fmt.Println("> " + message)
 
@@ -84,24 +87,7 @@ func (s *connObj) handleMessage(msg []byte) {
 	}
 }
 
-func (s *connObj) WriteString(message string) {
-	s.wrCh <- []byte(message)
-}
-
-func (s *connObj) Write(message []byte) {
-	s.wrCh <- message
-}
-
-func (s *connObj) doWrite(message []byte) {
-	if s.conn != nil {
-		n, err := s.conn.Write(message)
-		if err != nil {
-			logrus.Errorf("Write message failed: %v (%v bytes written)", err, n)
-		}
-	}
-}
-
-func (s *connObj) handleWriteRequests() {
+func (s *connectionObj) handleWriteRequests() {
 	for {
 		select {
 		case msg := <-s.wrCh:
@@ -110,4 +96,25 @@ func (s *connObj) handleWriteRequests() {
 			return
 		}
 	}
+}
+
+func (s *connectionObj) WriteString(message string) {
+	s.wrCh <- []byte(message)
+}
+
+func (s *connectionObj) Write(message []byte) {
+	s.wrCh <- message
+}
+
+func (s *connectionObj) doWrite(message []byte) {
+	if s.conn != nil {
+		n, err := s.conn.Write(message)
+		if err != nil {
+			logrus.Errorf("Write message failed: %v (%v bytes written)", err, n)
+		}
+	}
+}
+
+func (s *connectionObj) RemoteAddrString() string {
+	return s.conn.RemoteAddr().String()
 }

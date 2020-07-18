@@ -7,24 +7,26 @@ import (
 	"net"
 )
 
-type serverObj struct {
+type Obj struct {
 	listener    net.Listener
-	connections []*connObj
+	connections []*connectionObj
 	closeErr    error
 	exitCh      chan struct{}
+	newConnFunc NewConnectionFunc
 }
 
-func newServerObj(listener net.Listener) (s *serverObj) {
-	s = &serverObj{
+func newServerObj(listener net.Listener) (s *Obj) {
+	s = &Obj{
 		listener:    listener,
 		connections: nil,
 		closeErr:    nil,
 		exitCh:      make(chan struct{}),
+		newConnFunc: newConnObj,
 	}
 	return
 }
 
-func (s *serverObj) RequestShutdown() {
+func (s *Obj) RequestShutdown() {
 	close(s.exitCh)
 	if s.listener != nil {
 		s.closeErr = s.listener.Close()
@@ -32,7 +34,7 @@ func (s *serverObj) RequestShutdown() {
 	}
 }
 
-func (s *serverObj) Close() {
+func (s *Obj) Close() {
 	if s.listener != nil {
 		s.closeErr = s.listener.Close()
 		s.listener = nil
@@ -43,7 +45,7 @@ func (s *serverObj) Close() {
 	}
 }
 
-func (s *serverObj) Serve() (err error) {
+func (s *Obj) Serve() (err error) {
 	defer s.Close()
 	//for {
 	//	_, err := s.Accept()
@@ -69,24 +71,25 @@ func (s *serverObj) Serve() (err error) {
 			return e
 		}
 
-		var co *connObj
-		co = newConnObj(s, conn)
-		go co.handleConnection(ctx)
+		var co ConnectionObj
+		co = s.newConnection(conn)
+		go co.HandleConnection(ctx)
 		//c := srv.newConn(rw)
 		//c.setState(c.rwc, StateNew) // before Serve can return
 		//go c.serve(ctx)
 	}
 }
 
-//func (s *serverObj) Accept() (co *connObj, err error) {
-//	var conn net.Conn
-//	conn, err = s.listener.Accept()
-//	if err != nil {
-//		return
-//	}
-//	co = newConnObj(conn)
-//	go co.handleConnection()
-//	return
-//}
+func (s *Obj) newConnection(conn net.Conn) (co ConnectionObj) {
+	co = s.newConnFunc(s, conn)
+	return
+}
+
+func (s *Obj) SetNewConnectionFunc(fn NewConnectionFunc) {
+	s.newConnFunc = fn
+	return
+}
+
+type NewConnectionFunc func(s *Obj, conn net.Conn) ConnectionObj
 
 var ErrServerClosed = errors.New("server closed")
