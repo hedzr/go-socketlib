@@ -41,40 +41,49 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	}
 
 	tcpServer := tcp.NewSubCommand("server", "s").
-		Description("TCP Server Operations").
+		Description("TCP/UDP Server Operations").
 		Group("Test").
 		Action(serverRun)
 
+	cmdr.NewBool().Titles("stop", "s", "shutdown").
+		Description("stop/shutdown the running server").
+		Group("Tool").
+		AttachTo(tcpServer)
+
 	tcpServer.NewFlagV(b.port, "port", "p").
 		Description("The port to listen on").
-		Group("Test").
+		Group("TCP/UDP").
 		Placeholder("PORT")
 
 	tcpServer.NewFlagV("", "addr", "a", "adr", "address").
 		Description("The address to listen to").
-		Group("Test").
+		Group("TCP/UDP").
 		Placeholder("HOST-or-IP")
 
-	tcpServer.NewFlagV(false, "enable-tls", "tls").
+	cmdr.NewBool().Titles("0001.enable-tls", "tls").
 		Description("enable TLS mode").
-		Group("TLS")
-	
-	tcpServer.NewFlagV("root.pem", "cacert", "ca", "ca-cert").
+		Group("TLS").
+		AttachTo(tcpServer)
+	//tcpServer.NewFlagV(false, "enable-tls", "tls").
+	//	Description("enable TLS mode").
+	//	Group("TLS")
+
+	tcpServer.NewFlagV("root.pem", "100.cacert", "ca", "ca-cert").
 		Description("CA cert path (.cer,.crt,.pem) if it's standalone").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpServer.NewFlagV("cert.pem", "cert", "c").
+	tcpServer.NewFlagV("cert.pem", "110.cert", "c").
 		Description("server public-cert path (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpServer.NewFlagV("cert.key", "key", "k").
+	tcpServer.NewFlagV("cert.key", "120.key", "k").
 		Description("server private-key path (.cer,.crt,.pem)").
 		Group("TLS").
 		Placeholder("PATH")
-	tcpServer.NewFlagV(false, "client-auth").
+	tcpServer.NewFlagV(false, "190.client-auth").
 		Description("enable client cert authentication").
 		Group("TLS")
-	tcpServer.NewFlagV(2, "tls-version").
+	tcpServer.NewFlagV(2, "200.tls-version").
 		Description("tls-version: 0,1,2,3").
 		Group("TLS")
 
