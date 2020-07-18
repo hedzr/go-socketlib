@@ -45,14 +45,7 @@ func serverRun(cmd *cmdr.Command, args []string) (err error) {
 	}
 
 	so := newServerObj(listener)
-	defer so.Close()
-	for {
-		_, err := so.Accept()
-		if err != nil {
-			fmt.Printf("Some connection error: %s\n", err)
-			continue
-		}
-	}
+	so.Serve()
 	return
 }
 

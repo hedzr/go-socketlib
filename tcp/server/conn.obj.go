@@ -2,25 +2,27 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"net"
-	"os"
 	"time"
 )
 
 type connObj struct {
-	conn     net.Conn
-	wrCh     chan []byte
-	exitCh   chan struct{}
-	closeErr error
+	serverObj *serverObj
+	conn      net.Conn
+	wrCh      chan []byte
+	exitCh    chan struct{}
+	closeErr  error
 }
 
-func newConnObj(conn net.Conn) (s *connObj) {
+func newConnObj(serverObj *serverObj, conn net.Conn) (s *connObj) {
 	s = &connObj{
-		conn:   conn,
-		wrCh:   make(chan []byte, 256),
-		exitCh: make(chan struct{}),
+		serverObj: serverObj,
+		conn:      conn,
+		wrCh:      make(chan []byte, 256),
+		exitCh:    make(chan struct{}),
 	}
 	return
 }
@@ -38,7 +40,7 @@ func (s *connObj) RemoteAddrString() string {
 	return s.conn.RemoteAddr().String()
 }
 
-func (s *connObj) handleConnection() {
+func (s *connObj) handleConnection(ctx context.Context) {
 	fmt.Println("Client connected from " + s.RemoteAddrString())
 
 	go s.handleWriteRequests()
@@ -72,7 +74,9 @@ func (s *connObj) handleMessage(msg []byte) {
 			s.WriteString("I'm shutting down now.\n")
 			fmt.Println("< " + "%quit%")
 			s.WriteString("%quit%\n")
-			os.Exit(0)
+			//os.Exit(0)
+			s.Close()
+			s.serverObj.RequestShutdown()
 
 		default:
 			s.WriteString("Unrecognized command.\n")
