@@ -2,7 +2,7 @@
  * Copyright © 2020 Hedzr Yeh.
  */
 
-package logger
+package logger_old
 
 import (
 	"github.com/hedzr/cmdr"

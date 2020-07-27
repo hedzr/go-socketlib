@@ -2,12 +2,12 @@
  * Copyright © 2020 Hedzr Yeh.
  */
 
-package logger
+package logger_old
 
 import (
 	"context"
-	"github.com/hedzr/cmdr"
 	"github.com/hedzr/logex"
+	"github.com/hedzr/logex/trace"
 	"github.com/sirupsen/logrus"
 )
 
