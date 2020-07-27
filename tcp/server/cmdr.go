@@ -8,23 +8,26 @@ import (
 	"github.com/hedzr/cmdr"
 )
 
-const (
-	DefaultPort = 8883
-)
-
-type Opt func(*builder)
+type CmdrOpt func(*builder)
 
 type builder struct {
 	port int
+	opts []Opt
 }
 
-func WithPort(port int) Opt {
+func WithPort(port int) CmdrOpt {
 	return func(b *builder) {
 		b.port = port
 	}
 }
 
-func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
+func WithServerOptions(opts ...Opt) CmdrOpt {
+	return func(b *builder) {
+		b.opts = opts
+	}
+}
+
+func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	// tcp := root.NewSubCommand().
 	// 	Titles("t", "tcp").
 	// 	Description("", "").
@@ -43,7 +46,9 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	tcpServer := tcp.NewSubCommand("server", "s").
 		Description("TCP/UDP Server Operations").
 		Group("Test").
-		Action(serverRun)
+		Action(func(cmd *cmdr.Command, args []string) (err error) {
+			return serverRun(cmd, args, b.opts...)
+		})
 
 	cmdr.NewBool().Titles("stop", "s", "shutdown").
 		Description("stop/shutdown the running server").
@@ -55,10 +60,12 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 		Group("TCP/UDP").
 		Placeholder("PORT")
 
-	tcpServer.NewFlagV("", "addr", "a", "adr", "address").
+	cmdr.NewString().
+		Titles("addr", "a", "adr", "address").
 		Description("The address to listen to").
 		Group("TCP/UDP").
-		Placeholder("HOST-or-IP")
+		Placeholder("HOST-or-IP").
+		AttachTo(tcpServer)
 
 	cmdr.NewBool().Titles("0001.enable-tls", "tls").
 		Description("enable TLS mode").
@@ -107,5 +114,12 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	tcpServer.NewFlagV(2, "200.tls-version").
 		Description("tls-version: 0,1,2,3").
 		Group("TLS")
+
+	cmdr.NewString(DefaultPidPathTemplate).
+		Titles("pid-path", "pp").
+		Description("The pid filepath").
+		Group("Tool").
+		Placeholder("PATH").
+		AttachTo(tcpServer)
 
 }

@@ -15,12 +15,12 @@ go 1.13
 // replace github.com/hedzr/errors => ../errors
 
 require (
-	github.com/hedzr/cmdr v1.6.51
+	github.com/hedzr/cmdr v1.7.0
+	github.com/hedzr/cmdr-addons v1.1.0
 	github.com/hedzr/go-ringbuf v0.8.0
 	github.com/hedzr/logex v1.2.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.6.0
 	gopkg.in/hedzr/errors.v2 v2.0.12
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

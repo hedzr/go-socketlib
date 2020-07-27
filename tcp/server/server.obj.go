@@ -4,32 +4,32 @@ import (
 	"context"
 	"github.com/hedzr/logex"
 	"github.com/hedzr/logex/logx/zap/sugar"
-	"gopkg.in/hedzr/errors.v2"
 	"net"
 )
 
 type Obj struct {
+	logex.Logger
 	listener    net.Listener
 	connections []*connectionObj
 	closeErr    error
 	exitCh      chan struct{}
 	newConnFunc NewConnectionFunc
-	logger      logex.Logger
+	pfs         *pidFileStruct
 }
 
-type NewConnectionFunc func(serverObj *Obj, conn net.Conn) ConnectionObj
+type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) ConnectionObj
 
 func newServerObj(logger logex.Logger) (s *Obj) {
 	s = &Obj{
+		Logger: logger,
 		//listener:    listener,
 		connections: nil,
 		closeErr:    nil,
 		exitCh:      make(chan struct{}),
 		newConnFunc: newConnObj,
-		logger:      logger,
 	}
-	if s.logger == nil {
-		s.logger = sugar.New("debug", false, true)
+	if s.Logger == nil {
+		s.Logger = sugar.New("debug", false, true)
 	}
 	return
 }
@@ -55,6 +55,11 @@ func (s *Obj) Close() {
 	for _, c := range s.connections {
 		c.Close()
 	}
+
+	if s.pfs != nil {
+		s.pfs.Destroy()
+		s.pfs = nil
+	}
 }
 
 func (s *Obj) Serve() (err error) {
@@ -68,6 +73,8 @@ func (s *Obj) Serve() (err error) {
 	//}
 
 	baseCtx := context.Background()
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
 
 	for {
 		conn, e := s.listener.Accept()
@@ -75,26 +82,29 @@ func (s *Obj) Serve() (err error) {
 			select {
 			case <-s.exitCh:
 				return ErrServerClosed
+			case <-ctx.Done():
+				return ErrServerClosed
 			default:
 			}
+
 			if ne, ok := e.(net.Error); ok && ne.Temporary() {
 				// handle the error
-				s.logger.Errorf("can't accept a connection: %v", e)
+				s.Errorf("can't accept a connection: %v", e)
 			}
 			return e
 		}
 
 		var co ConnectionObj
-		co = s.newConnection(conn)
-		go co.HandleConnection(baseCtx)
+		co = s.newConnection(ctx, conn)
+		go co.HandleConnection(ctx)
 		//c := srv.newConn(rw)
 		//c.setState(c.rwc, StateNew) // before Serve can return
 		//go c.serve(ctx)
 	}
 }
 
-func (s *Obj) newConnection(conn net.Conn) (co ConnectionObj) {
-	co = s.newConnFunc(s, conn)
+func (s *Obj) newConnection(ctx context.Context, conn net.Conn) (co ConnectionObj) {
+	co = s.newConnFunc(ctx, s, conn)
 	return
 }
 
@@ -102,5 +112,3 @@ func (s *Obj) SetNewConnectionFunc(fn NewConnectionFunc) {
 	s.newConnFunc = fn
 	return
 }
-
-var ErrServerClosed = errors.New("server closed")

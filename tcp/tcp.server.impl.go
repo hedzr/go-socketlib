@@ -68,12 +68,12 @@ func newServer(addr string, opts ...ServerOpt) *Server {
 	var err error
 	s.host, port, err = net.SplitHostPort(addr)
 	if err != nil {
-		s.Wrong(err, "can't split addr to host & port")
+		s.Errorf("can't split addr to host & port: %v", err)
 		return nil
 	}
 	s.port, err = strconv.Atoi(port)
 	if err != nil {
-		s.Wrong(err, "can't parse port to integer")
+		s.Errorf("can't parse port to integer: %v", err)
 		return nil
 	}
 
@@ -92,10 +92,6 @@ func (s *Server) defaultCreateReadWriter(ss *Server, conn net.Conn, tsConnected 
 
 func (s *Server) Start() (err error) {
 	s.exitingFlag = false
-
-	if len(s.Tag) == 0 {
-		s.Tag = "tcp.server"
-	}
 
 	if s.done == nil {
 		s.done = make(chan struct{})

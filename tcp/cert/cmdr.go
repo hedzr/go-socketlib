@@ -2,7 +2,6 @@ package cert
 
 import (
 	"github.com/hedzr/cmdr"
-	"log"
 	"time"
 )
 
@@ -19,10 +18,10 @@ func certSubCommands(certOptCmd cmdr.OptCmd) {
 		Description("certification tool (such as create-ca, create-cert, ...)", "certification tool (such as create-ca, create-cert, ...)\nverbose long descriptions here.").
 		Group("CA")
 
-	caCreateCmd := caCmd.NewSubCommand("create", "c").
+	_ = caCmd.NewSubCommand("create", "c").
 		Description("[NOT YET] create NEW CA certificates").
 		Action(caCreate)
-	log.Println(caCreateCmd)
+	//log.Println(caCreateCmd)
 
 	// certCmd := certOptCmd.NewSubCommand().
 	// 	Titles("", "cert").
@@ -32,7 +31,7 @@ func certSubCommands(certOptCmd cmdr.OptCmd) {
 	certCreateCmd := certOptCmd.NewSubCommand("create", "c").
 		Description("create NEW certificates").
 		Action(certCreate)
-	log.Println(certCreateCmd)
+	//log.Println(certCreateCmd)
 
 	certCreateCmd.NewFlagV([]string{"localhost"}, "hostnames", "hns").
 		Description("Comma-separated hostname list and/or IPs to generate a certificate for")

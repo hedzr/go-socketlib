@@ -21,7 +21,7 @@ import (
 
 // newRingBuf will allocate, initialize, and return a ring buffer
 // with the specified size.
-func newRingBuf(size int32) fast.RingBuffer {
+func newRingBuf(size uint32) fast.RingBuffer {
 	if x := fast.New(size); x != nil {
 		return x
 	}

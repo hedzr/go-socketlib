@@ -25,6 +25,21 @@ func StopServer(s *Server) {
 	s.Stop()
 }
 
+// HandleSignals returns a waiter function to listen some predefined os signals.
+//
+//
+// Usage
+//
+//  func enteringLoop() {
+// 	  waiter := cmdr.HandleSignals(func(s os.Signal) {
+// 	    // request shutdown:
+//      globalExitChan <- true
+// 	  })
+// 	  go waiter()
+//  }
+//
+//
+//
 func HandleSignals(onTrapped func(s os.Signal)) (waiter func()) {
 	waiter = cmdr.TrapSignals(onTrapped)
 	return

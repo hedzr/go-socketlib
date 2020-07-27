@@ -19,17 +19,17 @@ type connectionObj struct {
 	serverObj *Obj
 	conn      net.Conn
 	wrCh      chan []byte
-	exitCh    chan struct{}
 	closeErr  error
+	//exitCh    chan struct{}
 	//logger    logx.Logger
 }
 
-func newConnObj(serverObj *Obj, conn net.Conn) (s ConnectionObj) {
+func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s ConnectionObj) {
 	s = &connectionObj{
 		serverObj: serverObj,
 		conn:      conn,
 		wrCh:      make(chan []byte, 256),
-		exitCh:    make(chan struct{}),
+		//exitCh:    make(chan struct{}),
 		//logger:    serverObj.logger,
 	}
 	return
@@ -41,11 +41,14 @@ func (s *connectionObj) Close() {
 		s.conn = nil
 	}
 	close(s.wrCh)
-	close(s.exitCh)
+	//close(s.exitCh)
 }
 
 func (s *connectionObj) HandleConnection(ctx context.Context) {
-	s.serverObj.logger.Printf("Client connected from " + s.RemoteAddrString())
+	s.serverObj.Printf("Client connected from " + s.RemoteAddrString())
+	defer func() {
+		s.serverObj.Printf("Client at " + s.RemoteAddrString() + " disconnected.")
+	}()
 
 	go s.handleWriteRequests(ctx)
 
@@ -53,18 +56,21 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 	for {
 		ok := scanner.Scan()
 		if !ok {
-			break
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
 
 		s.handleMessage(ctx, scanner.Bytes())
 	}
-
-	s.serverObj.logger.Printf("Client at " + s.RemoteAddrString() + " disconnected.")
 }
 
 func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 	message := string(msg)
-	fmt.Println("> " + message)
+	s.serverObj.Tracef("> %v", message)
 
 	if len(message) > 0 && message[0] == '/' {
 		switch {
@@ -93,12 +99,12 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 		select {
 		case msg := <-s.wrCh:
 			s.doWrite(msg)
-		case <-s.exitCh:
+		case <-ctx.Done():
 			return
 		case <-ctx.Done():
 			// If the request gets cancelled, log it
 			// to STDERR
-			s.serverObj.logger.Errorf("request cancelled")
+			s.serverObj.Errorf("request cancelled")
 		}
 	}
 }
@@ -115,7 +121,7 @@ func (s *connectionObj) doWrite(message []byte) {
 	if s.conn != nil {
 		n, err := s.conn.Write(message)
 		if err != nil {
-			s.serverObj.logger.Errorf("Write message failed: %v (%v bytes written)", err, n)
+			s.serverObj.Errorf("Write message failed: %v (%v bytes written)", err, n)
 		}
 	}
 }

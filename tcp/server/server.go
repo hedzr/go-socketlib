@@ -6,22 +6,77 @@ package server
 
 import (
 	"github.com/hedzr/cmdr"
+	"github.com/hedzr/go-socketlib/tcp"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/logex/build"
 	"net"
+	"os"
 	"strconv"
 )
 
-func serverRun(cmd *cmdr.Command, args []string) (err error) {
+func newServer(config *Config, opts ...Opt) ServeFunc {
+	so := newServerObj(build.New(config.LoggerConfig))
+
+	for _, opt := range opts {
+		opt(so)
+	}
+
+	so.pfs = makePidFSFromDir(config.PidDir)
+
+	so.Infof("Starting server...")
+
+	var addr, host, port string
+	var err error
+	host, port, err = net.SplitHostPort(config.Addr)
+	addr = net.JoinHostPort(host, port)
+
+	var listener net.Listener
+	var tlsEnabled bool
+	listener, tlsEnabled, err = serverBuildListener(so, addr, config.PrefixInConfigFile, config.PrefixInCommandLine)
+	if err != nil {
+		so.Fatalf("build listener failed: %v", err)
+	}
+	so.Listen(listener)
+
+	if err = so.pfs.Create(); err != nil {
+		so.Fatalf("failed to create pid file: %v", err)
+	} else {
+		so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
+	}
+
+	if tlsEnabled {
+		so.Printf("Listening on %s with TLS enabled.", addr)
+	} else {
+		so.Printf("Listening on %s.", addr)
+	}
+
+	return so.Serve
+}
+
+func serverRun(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 
 	loggerConfig := build.NewLoggerConfig()
 	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+
 	so := newServerObj(build.New(loggerConfig))
 
-	so.logger.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
+	for _, opt := range opts {
+		opt(so)
+	}
 
 	prefixInCommandLine := cmd.GetDottedNamePath()
 	prefixInConfigFile := "tcp.server"
+
+	so.pfs = makePidFS(prefixInCommandLine)
+
+	if cmdr.GetBoolRP(prefixInCommandLine, "stop", false) {
+		if err = findAndShutdownTheRunningInstance(so.pfs); err != nil {
+			so.Errorf("No running instance found: %v", err)
+		}
+		return
+	}
+
+	so.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
 
 	var addr, host, port string
 	host, port, err = net.SplitHostPort(cmdr.GetStringRP(prefixInConfigFile, "addr"))
@@ -31,112 +86,64 @@ func serverRun(cmd *cmdr.Command, args []string) (err error) {
 	if port == "0" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInCommandLine, "port", 1024), 10)
 		if port == "0" {
-			so.logger.Fatalf("invalid port number: %q", port)
+			so.Fatalf("invalid port number: %q", port)
 		}
 	}
 	addr = net.JoinHostPort(host, port)
 
 	var listener net.Listener
-	listener, err = serverBuildListener(so, addr, prefixInConfigFile, prefixInCommandLine)
+	var tlsEnabled bool
+	listener, tlsEnabled, err = serverBuildListener(so, addr, prefixInConfigFile, prefixInCommandLine)
 	if err != nil {
-		so.logger.Fatalf("build listener failed: %v", err)
+		so.Fatalf("build listener failed: %v", err)
 	}
 	so.Listen(listener)
 
-	err = so.Serve()
+	if err = so.pfs.Create(); err != nil {
+		so.Fatalf("failed to create pid file: %v", err)
+	} else {
+		so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
+	}
+
+	go func() {
+		if tlsEnabled {
+			so.Printf("Listening on %s with TLS enabled.", addr)
+		} else {
+			so.Printf("Listening on %s.", addr)
+		}
+		if err = so.Serve(); err != nil {
+			so.Errorf("Serve() failed: %v", err)
+		}
+	}()
+
+	tcp.HandleSignals(func(s os.Signal) {
+		so.RequestShutdown()
+	})()
 	return
 }
 
-func serverBuildListener(so *Obj, addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, err error) {
+func serverBuildListener(so *Obj, addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, tls bool, err error) {
 	var tlsListener net.Listener
 	listener, err = net.Listen(
 		cmdr.GetStringRP(prefixInConfigFile, "network",
 			cmdr.GetStringRP(prefixInCommandLine, "network", "tcp")),
 		addr)
 	if err != nil {
-		so.logger.Fatalf("error: %v", err)
+		so.Fatalf("error: %v", err)
 	}
 
 	ctcPrefix := prefixInConfigFile + ".tls"
 	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
-	so.logger.Debugf("%v", ctc)
+	so.Debugf("%v", ctc)
 	if ctc.Enabled {
 		tlsListener, err = ctc.NewTlsListener(listener)
 		if err != nil {
-			so.logger.Fatalf("error: %v", err)
+			so.Fatalf("error: %v", err)
 		}
 	}
 	if tlsListener != nil {
 		listener = tlsListener
-		so.logger.Printf("Listening on %s with TLS enabled.", addr)
-	} else {
-		so.logger.Printf("Listening on %s.", addr)
+		tls = true
 	}
 	return
 }
-
-// func newTlsConfig(cacertFile, certFile, keyFile string, clientAuth bool) (config *tls.Config, err error) {
-// 	var cert tls.Certificate
-// 	cert, err = tls.LoadX509KeyPair(certFile, keyFile)
-// 	if err != nil {
-// 		err = errors.New("error parsing X509 certificate/key pair").Attach(err)
-// 		return
-// 	}
-// 	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-// 	if err != nil {
-// 		err = errors.New("error parsing certificate").Attach(err)
-// 		return
-// 	}
-//
-// 	// Create TLSConfig
-// 	// We will determine the cipher suites that we prefer.
-// 	config = &tls.Config{
-// 		Certificates: []tls.Certificate{cert},
-// 		MinVersion:   tls.VersionTLS12,
-// 	}
-//
-// 	// Require client certificates as needed
-// 	if clientAuth {
-// 		config.ClientAuth = tls.RequireAndVerifyClientCert
-// 	}
-//
-// 	// Add in CAs if applicable.
-// 	if cacertFile != "" {
-// 		rootPEM, err := ioutil.ReadFile(cacertFile)
-// 		if err != nil || rootPEM == nil {
-// 			return nil, err
-// 		}
-// 		pool := x509.NewCertPool()
-// 		ok := pool.AppendCertsFromPEM([]byte(rootPEM))
-// 		if !ok {
-// 			err = errors.New("failed to parse root ca certificate")
-// 		}
-// 		config.ClientCAs = pool
-// 	}
-// 	return
-// }
-
-//
-// var addr = flag.String("addr", "", "The address to listen to; default is \"\" (all interfaces).")
-// var port = flag.Int("port", 8000, "The port to listen on; default is 8000.")
-//
-// func Run() {
-// 	flag.Parse()
-//
-// 	fmt.Println("Starting server...")
-//
-// 	src := *addr + ":" + strconv.Itoa(*port)
-// 	listener, _ := net.Listen("tcp", src)
-// 	fmt.Printf("Listening on %s.\n", src)
-//
-// 	defer listener.Close()
-//
-// 	for {
-// 		conn, err := listener.Accept()
-// 		if err != nil {
-// 			fmt.Printf("Some connection error: %s\n", err)
-// 		}
-//
-// 		go handleConnection(conn)
-// 	}
-// }
