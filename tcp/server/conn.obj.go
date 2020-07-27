@@ -4,14 +4,24 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/hedzr/logex"
 	"net"
 	"time"
 )
 
-type ConnectionObj interface {
+type Connection interface {
+	Logger() logex.Logger
+
 	Close()
+	// RawWrite does write through the internal net.Conn
+	RawWrite(ctx context.Context, message []byte) (n int, err error)
+
+	// HandleConnection is used by serverObj
 	HandleConnection(ctx context.Context)
+
+	// WriteString send the string to the writing queue
 	WriteString(message string)
+	// Write send the buffer to the writing queue
 	Write(message []byte)
 }
 
@@ -24,7 +34,7 @@ type connectionObj struct {
 	//logger    logx.Logger
 }
 
-func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s ConnectionObj) {
+func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connection) {
 	s = &connectionObj{
 		serverObj: serverObj,
 		conn:      conn,
@@ -35,20 +45,34 @@ func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connectio
 	return
 }
 
+func (s *connectionObj) Logger() logex.Logger {
+	return s.serverObj
+}
+
 func (s *connectionObj) Close() {
 	if s.conn != nil {
+		if s.serverObj.protocolInterceptor != nil {
+			s.serverObj.protocolInterceptor.OnClosing(s)
+		}
 		s.closeErr = s.conn.Close()
 		s.conn = nil
 	}
 	close(s.wrCh)
 	//close(s.exitCh)
+	if s.serverObj.protocolInterceptor != nil {
+		s.serverObj.protocolInterceptor.OnClosed(s)
+	}
 }
 
 func (s *connectionObj) HandleConnection(ctx context.Context) {
-	s.serverObj.Printf("Client connected from " + s.RemoteAddrString())
+	s.serverObj.Debugf("Client connected from " + s.RemoteAddrString())
 	defer func() {
-		s.serverObj.Printf("Client at " + s.RemoteAddrString() + " disconnected.")
+		s.serverObj.Debugf("Client at " + s.RemoteAddrString() + " disconnected.")
 	}()
+
+	if s.serverObj.protocolInterceptor != nil {
+		s.serverObj.protocolInterceptor.OnConnected(ctx, s)
+	}
 
 	go s.handleWriteRequests(ctx)
 
@@ -69,6 +93,16 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 }
 
 func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
+
+	if s.serverObj.protocolInterceptor != nil {
+		if processed, err := s.serverObj.protocolInterceptor.OnReading(ctx, s, msg); processed {
+			return
+		} else if err != nil {
+			s.serverObj.Errorf("error occurs on intercepting reading bytes: %v", err)
+			return
+		}
+	}
+
 	message := string(msg)
 	s.serverObj.Tracef("> %v", message)
 
@@ -98,7 +132,7 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 	for {
 		select {
 		case msg := <-s.wrCh:
-			s.doWrite(msg)
+			s.doWrite(ctx, msg)
 		case <-ctx.Done():
 			return
 		case <-ctx.Done():
@@ -117,13 +151,30 @@ func (s *connectionObj) Write(message []byte) {
 	s.wrCh <- message
 }
 
-func (s *connectionObj) doWrite(message []byte) {
+func (s *connectionObj) doWrite(ctx context.Context, msg []byte) {
 	if s.conn != nil {
-		n, err := s.conn.Write(message)
+
+		if s.serverObj.protocolInterceptor != nil {
+			if processed, err := s.serverObj.protocolInterceptor.OnWriting(ctx, s, msg); processed {
+				return
+			} else if err != nil {
+				s.serverObj.Errorf("error occurs on intercepting writing bytes: %v", err)
+				return
+			}
+		}
+
+		n, err := s.conn.Write(msg)
 		if err != nil {
 			s.serverObj.Errorf("Write message failed: %v (%v bytes written)", err, n)
 		}
 	}
+}
+
+func (s *connectionObj) RawWrite(ctx context.Context, msg []byte) (n int, err error) {
+	if s.conn != nil {
+		n, err = s.conn.Write(msg)
+	}
+	return
 }
 
 func (s *connectionObj) RemoteAddrString() string {

@@ -34,9 +34,17 @@ func (c *clientObj) Close() {
 	}
 }
 
+func (c *clientObj) startLoopers() {
+	go c.readConnection()
+	go c.runPrompt()
+}
+
 func (c *clientObj) run() {
 	go c.readConnection()
+	c.runPrompt()
+}
 
+func (c *clientObj) runPrompt() {
 	fmt.Println("type 'quit' to exit client, '/quit' to exit both server and client.")
 	defer c.Close()
 	for c.quiting == false {

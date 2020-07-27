@@ -15,10 +15,28 @@ const (
 
 type Opt func(*builder)
 
-func WithPort(port int) Opt {
+func WithCmdrPort(port int) Opt {
 	return func(b *builder) {
 		b.port = port
 	}
+}
+
+func WithCmdrInteractiveCommand(enabled bool) Opt {
+	return func(b *builder) {
+		b.interactiveCommand = enabled
+	}
+}
+
+func WithCmdrCommandAction(action cmdr.Handler) Opt {
+	return func(b *builder) {
+		b.action = action
+	}
+}
+
+type builder struct {
+	port               int
+	interactiveCommand bool
+	action             cmdr.Handler
 }
 
 func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
@@ -31,27 +49,26 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	// // })
 
 	b := &builder{
-		port: DefaultPort,
+		port:   DefaultPort,
+		action: runAsCliTool,
 	}
 	for _, opt := range opts {
 		opt(b)
 	}
 
-	tc2 := tcp.NewSubCommand("interactive-client", "ic").
-		Description("TCP interactive client operations").
-		Group("Test").
-		Action(clientRun)
-	b.attachTcpClientFlags(tc2)
+	if b.interactiveCommand {
+		tc2 := tcp.NewSubCommand("interactive-client", "ic").
+			Description("TCP interactive client operations").
+			Group("Test").
+			Action(interactiveRunAsCliTool)
+		b.attachTcpClientFlags(tc2)
+	}
 
 	tcpClient := tcp.NewSubCommand("client", "c").
 		Description("TCP client operations").
 		Group("Test").
-		Action(run)
+		Action(b.action)
 	b.attachTcpClientFlags(tcpClient)
-}
-
-type builder struct {
-	port int
 }
 
 func (b *builder) attachTcpClientFlags(tcpClient cmdr.OptCmd) {

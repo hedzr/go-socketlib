@@ -4,7 +4,7 @@ go 1.13
 
 // replace github.com/hedzr/cmdr => ../cmdr
 
-// replace github.com/hedzr/logex => ../logex
+replace github.com/hedzr/logex => ../logex
 
 // replace github.com/hedzr/ringbuf => ../go-ringbuf
 

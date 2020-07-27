@@ -9,15 +9,17 @@ import (
 
 type Obj struct {
 	logex.Logger
-	listener    net.Listener
-	connections []*connectionObj
-	closeErr    error
-	exitCh      chan struct{}
-	newConnFunc NewConnectionFunc
-	pfs         *pidFileStruct
+	listener            net.Listener
+	connections         []*connectionObj
+	closeErr            error
+	exitCh              chan struct{}
+	pfs                 *pidFileStruct
+	newConnFunc         NewConnectionFunc
+	protocolInterceptor ProtocolInterceptor
+	prefix              string
 }
 
-type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) ConnectionObj
+type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) Connection
 
 func newServerObj(logger logex.Logger) (s *Obj) {
 	s = &Obj{
@@ -32,6 +34,10 @@ func newServerObj(logger logex.Logger) (s *Obj) {
 		s.Logger = sugar.New("debug", false, true)
 	}
 	return
+}
+
+func (s *Obj) SetProtocolInterceptor(pi ProtocolInterceptor) {
+	s.protocolInterceptor = pi
 }
 
 func (s *Obj) Listen(listener net.Listener) {
@@ -76,6 +82,11 @@ func (s *Obj) Serve() (err error) {
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
 
+	if s.protocolInterceptor != nil {
+		s.protocolInterceptor.OnServerReady(ctx, s)
+		defer func() { s.protocolInterceptor.OnServerClosed(s) }()
+	}
+
 	for {
 		conn, e := s.listener.Accept()
 		if e != nil {
@@ -94,7 +105,7 @@ func (s *Obj) Serve() (err error) {
 			return e
 		}
 
-		var co ConnectionObj
+		var co Connection
 		co = s.newConnection(ctx, conn)
 		go co.HandleConnection(ctx)
 		//c := srv.newConn(rw)
@@ -103,7 +114,7 @@ func (s *Obj) Serve() (err error) {
 	}
 }
 
-func (s *Obj) newConnection(ctx context.Context, conn net.Conn) (co ConnectionObj) {
+func (s *Obj) newConnection(ctx context.Context, conn net.Conn) (co Connection) {
 	co = s.newConnFunc(ctx, s, conn)
 	return
 }

@@ -6,9 +6,21 @@ func New(config *Config, opts ...Opt) ServeFunc {
 	return newServer(config, opts...)
 }
 
-func WithNewConnectionFunc(fn NewConnectionFunc) Opt {
+func WithServerNewConnectionFunc(fn NewConnectionFunc) Opt {
 	return func(so *Obj) {
 		so.newConnFunc = fn
+	}
+}
+
+func WithServerProtocolInterceptor(fn ProtocolInterceptor) Opt {
+	return func(so *Obj) {
+		so.protocolInterceptor = fn
+	}
+}
+
+func WithServerPrefixInConfigFile(prefix string) Opt {
+	return func(so *Obj) {
+		so.prefix = prefix
 	}
 }
 

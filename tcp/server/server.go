@@ -53,10 +53,15 @@ func newServer(config *Config, opts ...Opt) ServeFunc {
 	return so.Serve
 }
 
-func serverRun(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
+func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 
 	loggerConfig := build.NewLoggerConfig()
 	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+
+	config := NewConfig()
+	config.PrefixInCommandLine = cmd.GetDottedNamePath()
+	config.PrefixInConfigFile = "tcp.server"
+	config.LoggerConfig = loggerConfig
 
 	so := newServerObj(build.New(loggerConfig))
 
@@ -64,12 +69,10 @@ func serverRun(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 		opt(so)
 	}
 
-	prefixInCommandLine := cmd.GetDottedNamePath()
-	prefixInConfigFile := "tcp.server"
+	config.PrefixInConfigFile = so.prefix
+	so.pfs = makePidFS(config.PrefixInCommandLine)
 
-	so.pfs = makePidFS(prefixInCommandLine)
-
-	if cmdr.GetBoolRP(prefixInCommandLine, "stop", false) {
+	if cmdr.GetBoolRP(config.PrefixInCommandLine, "stop", false) {
 		if err = findAndShutdownTheRunningInstance(so.pfs); err != nil {
 			so.Errorf("No running instance found: %v", err)
 		}
@@ -77,14 +80,15 @@ func serverRun(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 	}
 
 	so.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
+	so.Tracef("    logging.level: %v", so.Logger.GetLevel())
 
 	var addr, host, port string
-	host, port, err = net.SplitHostPort(cmdr.GetStringRP(prefixInConfigFile, "addr"))
+	host, port, err = net.SplitHostPort(cmdr.GetStringRP(config.PrefixInConfigFile, "addr"))
 	if port == "" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInConfigFile, "ports.default"), 10)
+		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
 	}
 	if port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInCommandLine, "port", 1024), 10)
+		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInCommandLine, "port", 1024), 10)
 		if port == "0" {
 			so.Fatalf("invalid port number: %q", port)
 		}
@@ -93,7 +97,7 @@ func serverRun(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 
 	var listener net.Listener
 	var tlsEnabled bool
-	listener, tlsEnabled, err = serverBuildListener(so, addr, prefixInConfigFile, prefixInCommandLine)
+	listener, tlsEnabled, err = serverBuildListener(so, addr, config.PrefixInConfigFile, config.PrefixInCommandLine)
 	if err != nil {
 		so.Fatalf("build listener failed: %v", err)
 	}

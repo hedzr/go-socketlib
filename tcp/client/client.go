@@ -18,12 +18,57 @@ import (
 	"time"
 )
 
-func run(cmd *cmdr.Command, args []string) (err error) {
+func DefaultLooper(cmd *cmdr.Command, args []string) (err error) {
+	var (
+		conn net.Conn
+	)
+
 	loggerConfig := build.NewLoggerConfig()
 	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
 	logger := build.New(loggerConfig)
 
 	done := make(chan bool, 1)
+
+	prefixCLI := cmd.GetDottedNamePath()
+	prefix := "tcp.client.tls"
+	// prefixCLI := "tcp.client"
+
+	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
+
+	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixCLI, "host"), cmdr.GetIntRP(prefixCLI, "port"))
+	tid := 1
+
+	conn, err = ctc.Dial("tcp", dest)
+
+	if err != nil {
+		if _, t := err.(*net.OpError); t {
+			// fmt.Println("Some problem connecting.")
+			logger.Errorf("[%d] Some problem connecting: %v", tid, err)
+		} else {
+			// fmt.Println("Unknown error: " + err.Error())
+			logger.Errorf("[%d] failed: %v", tid, err)
+		}
+		// os.Exit(1)
+		return
+	}
+
+	co := newClientObj(conn, logger)
+	defer co.Close()
+	co.startLoopers()
+
+	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+		logger.Debugf("signal[%v] caught and exiting this program", s)
+	})()
+	return
+}
+
+func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
+	loggerConfig := build.NewLoggerConfig()
+	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+	logger := build.New(loggerConfig)
+
+	done := make(chan bool, 1)
+
 	prefixInCommandLine := cmd.GetDottedNamePath()
 
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(prefixInCommandLine, "interactive")) {
@@ -71,7 +116,7 @@ var mqttSubscribe2TopicsPkg = []byte{
 	0, 7, 116, 111, 112, 105, 99, 48, 50, 0,
 }
 
-func clientRun(cmd *cmdr.Command, args []string) (err error) {
+func interactiveRunAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 	return
 }
 

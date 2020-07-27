@@ -9,21 +9,30 @@ import (
 )
 
 type CmdrOpt func(*builder)
+type CommandAction func(cmd *cmdr.Command, args []string, opts ...Opt) (err error)
 
 type builder struct {
-	port int
-	opts []Opt
+	port   int
+	opts   []Opt
+	action CommandAction
+	pi     ProtocolInterceptor
 }
 
-func WithPort(port int) CmdrOpt {
+func WithCmdrPort(port int) CmdrOpt {
 	return func(b *builder) {
 		b.port = port
 	}
 }
 
-func WithServerOptions(opts ...Opt) CmdrOpt {
+func WithCmdrServerOptions(opts ...Opt) CmdrOpt {
 	return func(b *builder) {
-		b.opts = opts
+		b.opts = append(b.opts, opts...)
+	}
+}
+
+func WithCmdrCommandAction(action CommandAction) CmdrOpt {
+	return func(b *builder) {
+		b.action = action
 	}
 }
 
@@ -37,8 +46,10 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	// // })
 
 	b := &builder{
-		port: DefaultPort,
+		port:   DefaultPort,
+		action: DefaultLooper,
 	}
+
 	for _, opt := range opts {
 		opt(b)
 	}
@@ -47,18 +58,21 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		Description("TCP/UDP Server Operations").
 		Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
-			return serverRun(cmd, args, b.opts...)
+			return b.action(cmd, args, b.opts...)
 		})
 
-	cmdr.NewBool().Titles("stop", "s", "shutdown").
+	cmdr.NewBool().
+		Titles("stop", "s", "shutdown").
 		Description("stop/shutdown the running server").
 		Group("Tool").
 		AttachTo(tcpServer)
 
-	tcpServer.NewFlagV(b.port, "port", "p").
+	cmdr.NewInt(b.port).
+		Titles("port", "p").
 		Description("The port to listen on").
 		Group("TCP/UDP").
-		Placeholder("PORT")
+		Placeholder("PORT").
+		AttachTo(tcpServer)
 
 	cmdr.NewString().
 		Titles("addr", "a", "adr", "address").
@@ -67,7 +81,8 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		Placeholder("HOST-or-IP").
 		AttachTo(tcpServer)
 
-	cmdr.NewBool().Titles("0001.enable-tls", "tls").
+	cmdr.NewBool().
+		Titles("0001.enable-tls", "tls").
 		Description("enable TLS mode").
 		Group("TLS").
 		AttachTo(tcpServer)
@@ -75,7 +90,8 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	//	Description("enable TLS mode").
 	//	Group("TLS")
 
-	cmdr.NewString("tcp").Titles("0007.network", "").
+	cmdr.NewString("tcp").
+		Titles("0007.network", "").
 		Description("network: tcp, tcp4, tcp6, unix, unixpacket", `
 
 // The network must be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
@@ -96,24 +112,35 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		Group("TLS").
 		AttachTo(tcpServer)
 
-	tcpServer.NewFlagV("root.pem", "100.cacert", "ca", "ca-cert").
+	cmdr.NewString("root.pem").
+		Titles("100.cacert", "ca", "ca-cert").
 		Description("CA cert path (.cer,.crt,.pem) if it's standalone").
 		Group("TLS").
-		Placeholder("PATH")
-	tcpServer.NewFlagV("cert.pem", "110.cert", "c").
+		Placeholder("PATH").
+		AttachTo(tcpServer)
+	cmdr.NewString("cert.pem").
+		Titles("110.cert", "c").
 		Description("server public-cert path (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	tcpServer.NewFlagV("cert.key", "120.key", "k").
+		Placeholder("PATH").
+		AttachTo(tcpServer)
+	cmdr.NewString("cert.key").
+		Titles("120.key", "k").
 		Description("server private-key path (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	tcpServer.NewFlagV(false, "190.client-auth").
+		Placeholder("PATH").
+		AttachTo(tcpServer)
+
+	cmdr.NewBool().
+		Titles("190.client-auth", "").
 		Description("enable client cert authentication").
-		Group("TLS")
-	tcpServer.NewFlagV(2, "200.tls-version").
+		Group("TLS").
+		AttachTo(tcpServer)
+	cmdr.NewInt(2).
+		Titles("200.tls-version", "").
 		Description("tls-version: 0,1,2,3").
-		Group("TLS")
+		Group("TLS").
+		AttachTo(tcpServer)
 
 	cmdr.NewString(DefaultPidPathTemplate).
 		Titles("pid-path", "pp").
