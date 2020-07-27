@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
@@ -22,14 +21,16 @@ type connectionObj struct {
 	wrCh      chan []byte
 	exitCh    chan struct{}
 	closeErr  error
+	//logger    logx.Logger
 }
 
-func newConnObj(serverObj *Obj, conn net.Conn) (s *connectionObj) {
+func newConnObj(serverObj *Obj, conn net.Conn) (s ConnectionObj) {
 	s = &connectionObj{
 		serverObj: serverObj,
 		conn:      conn,
 		wrCh:      make(chan []byte, 256),
 		exitCh:    make(chan struct{}),
+		//logger:    serverObj.logger,
 	}
 	return
 }
@@ -44,9 +45,9 @@ func (s *connectionObj) Close() {
 }
 
 func (s *connectionObj) HandleConnection(ctx context.Context) {
-	fmt.Println("Client connected from " + s.RemoteAddrString())
+	s.serverObj.logger.Printf("Client connected from " + s.RemoteAddrString())
 
-	go s.handleWriteRequests()
+	go s.handleWriteRequests(ctx)
 
 	scanner := bufio.NewScanner(s.conn)
 	for {
@@ -55,13 +56,13 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 			break
 		}
 
-		s.handleMessage(scanner.Bytes())
+		s.handleMessage(ctx, scanner.Bytes())
 	}
 
-	fmt.Println("Client at " + s.RemoteAddrString() + " disconnected.")
+	s.serverObj.logger.Printf("Client at " + s.RemoteAddrString() + " disconnected.")
 }
 
-func (s *connectionObj) handleMessage(msg []byte) {
+func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 	message := string(msg)
 	fmt.Println("> " + message)
 
@@ -87,13 +88,17 @@ func (s *connectionObj) handleMessage(msg []byte) {
 	}
 }
 
-func (s *connectionObj) handleWriteRequests() {
+func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 	for {
 		select {
 		case msg := <-s.wrCh:
 			s.doWrite(msg)
 		case <-s.exitCh:
 			return
+		case <-ctx.Done():
+			// If the request gets cancelled, log it
+			// to STDERR
+			s.serverObj.logger.Errorf("request cancelled")
 		}
 	}
 }
@@ -110,7 +115,7 @@ func (s *connectionObj) doWrite(message []byte) {
 	if s.conn != nil {
 		n, err := s.conn.Write(message)
 		if err != nil {
-			logrus.Errorf("Write message failed: %v (%v bytes written)", err, n)
+			s.serverObj.logger.Errorf("Write message failed: %v (%v bytes written)", err, n)
 		}
 	}
 }

@@ -2,7 +2,8 @@ package server
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
+	"github.com/hedzr/logex"
+	"github.com/hedzr/logex/logx/zap/sugar"
 	"gopkg.in/hedzr/errors.v2"
 	"net"
 )
@@ -13,17 +14,28 @@ type Obj struct {
 	closeErr    error
 	exitCh      chan struct{}
 	newConnFunc NewConnectionFunc
+	logger      logex.Logger
 }
 
-func newServerObj(listener net.Listener) (s *Obj) {
+type NewConnectionFunc func(serverObj *Obj, conn net.Conn) ConnectionObj
+
+func newServerObj(logger logex.Logger) (s *Obj) {
 	s = &Obj{
-		listener:    listener,
+		//listener:    listener,
 		connections: nil,
 		closeErr:    nil,
 		exitCh:      make(chan struct{}),
 		newConnFunc: newConnObj,
+		logger:      logger,
+	}
+	if s.logger == nil {
+		s.logger = sugar.New("debug", false, true)
 	}
 	return
+}
+
+func (s *Obj) Listen(listener net.Listener) {
+	s.listener = listener
 }
 
 func (s *Obj) RequestShutdown() {
@@ -50,12 +62,13 @@ func (s *Obj) Serve() (err error) {
 	//for {
 	//	_, err := s.Accept()
 	//	if err != nil {
-	//		fmt.Printf("Some connection error: %s\n", err)
+	//		s.logger.Printf("Some connection error: %s\n", err)
 	//		continue
 	//	}
 	//}
 
-	ctx := context.Background()
+	baseCtx := context.Background()
+
 	for {
 		conn, e := s.listener.Accept()
 		if e != nil {
@@ -66,14 +79,14 @@ func (s *Obj) Serve() (err error) {
 			}
 			if ne, ok := e.(net.Error); ok && ne.Temporary() {
 				// handle the error
-				logrus.Errorf("can't accept a connection: %v", e)
+				s.logger.Errorf("can't accept a connection: %v", e)
 			}
 			return e
 		}
 
 		var co ConnectionObj
 		co = s.newConnection(conn)
-		go co.HandleConnection(ctx)
+		go co.HandleConnection(baseCtx)
 		//c := srv.newConn(rw)
 		//c.setState(c.rwc, StateNew) // before Serve can return
 		//go c.serve(ctx)
@@ -89,7 +102,5 @@ func (s *Obj) SetNewConnectionFunc(fn NewConnectionFunc) {
 	s.newConnFunc = fn
 	return
 }
-
-type NewConnectionFunc func(s *Obj, conn net.Conn) ConnectionObj
 
 var ErrServerClosed = errors.New("server closed")

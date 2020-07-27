@@ -59,7 +59,7 @@ type Server struct {
 
 func newServer(addr string, opts ...ServerOpt) *Server {
 	s := &Server{
-		base:       newBase("tcp.server"),
+		base:       newBase(nil),
 		done:       make(chan struct{}),
 		bufferSize: DefaultBufferSize,
 	}
@@ -113,20 +113,20 @@ func (s *Server) Start() (err error) {
 	// var l net.Listener
 	s.l, err = net.Listen("tcp", addr)
 	if err != nil {
-		s.Wrong(err, "error listening: addr=%v", addr)
+		s.Errorf("error listening: addr=%v: %v", addr, err)
 		return // os.Exit(1)
 	}
 	// NOTE NOTE NOTE: we ignore s.InitTlsConfigFromConfigFile() NOW because it has been done by via tcp.NewCmdrTlsConfig()
 	if s.CmdrTlsConfig.IsCertValid() {
 		s.l, err = s.CmdrTlsConfig.NewTlsListener(s.l)
 		if err != nil {
-			s.Wrong(err, "error listening over TLS: addr=%v", addr)
+			s.Errorf("error listening over TLS: addr=%v: %v", addr, err)
 			return // os.Exit(1)
 		}
-		s.Debug("A tcp server listening on %v (over TLS)", addr)
+		s.Debugf("A tcp server listening on %v (over TLS)", addr)
 	} else {
 		// defer l.Close()
-		s.Debug("A tcp server listening on %v", addr)
+		s.Debugf("A tcp server listening on %v", addr)
 	}
 	// s.debug("  > listening on %v", addr)
 	// s.debug("    > listening on %v", addr)
@@ -149,7 +149,7 @@ func (s *Server) Close() (err error) {
 
 	if s.l != nil {
 		if err = s.l.Close(); err != nil {
-			s.Wrong(err, "closing s.listener")
+			s.Errorf("closing s.listener: %v", err)
 		}
 	}
 
@@ -192,18 +192,18 @@ func (s *Server) runLoop(l net.Listener, done <-chan struct{}) {
 				return
 			}
 			if neterr, ok := err.(net.Error); ok && (neterr.Temporary() || neterr.Timeout()) {
-				s.Warn("network error (temporary, or timeout), sleep 5ms and retry...")
+				s.Warnf("network error (temporary, or timeout), sleep 5ms and retry...: %v", neterr)
 				time.Sleep(5 * time.Millisecond)
 				continue
 			}
-			s.Wrong(err, "error accepting")
+			s.Errorf("error accepting: %v", err)
 			time.Sleep(5 * time.Millisecond)
 			continue // os.Exit(1)
 		}
 
 		ts := time.Now().UTC()
 		// logs an incoming message
-		s.Debug("received message %s -> %s \n", conn.RemoteAddr(), conn.LocalAddr())
+		s.Debugf("received message %s -> %s \n", conn.RemoteAddr(), conn.LocalAddr())
 		// Handle connections in a new goroutine.
 		go s.handleRequest(conn, ts, done)
 		// }
@@ -216,9 +216,9 @@ func (s *Server) handleRequest(conn net.Conn, tsConnected time.Time, done <-chan
 	defer func() {
 		if err := conn.Close(); err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
-				s.Trace("conn(from %v) closed by others.", conn.RemoteAddr())
+				s.Tracef("conn(from %v) closed by others.", conn.RemoteAddr())
 			} else {
-				s.Warn("conn.close failed: %v", err)
+				s.Warnf("conn.close failed: %v", err)
 			}
 		}
 		if s.onTcpServerDisconnectedWithClient != nil {
@@ -245,15 +245,15 @@ func (s *Server) handleRequest(conn net.Conn, tsConnected time.Time, done <-chan
 		n, err := reader.Read(buf)
 		if err != nil {
 			if err == io.EOF {
-				s.Debug("♦︎ conn(from: %v) read i/o eof found. closing '%v'", conn.RemoteAddr(), cidHolder.GetClientId())
+				s.Debugf("♦︎ conn(from: %v) read i/o eof found. closing '%v'", conn.RemoteAddr(), cidHolder.GetClientID())
 			} else {
 				if n > 0 {
 					nn, _ = s.onTcpProcess(buf[:n], reader, writer)
 				}
 				if strings.Contains(err.Error(), "use of closed network connection") {
-					s.Trace("♦︎ conn(from %v) closed by others.", conn.RemoteAddr())
+					s.Tracef("♦︎ conn(from %v) closed by others.", conn.RemoteAddr())
 				} else {
-					s.Wrong(err, "♦︎︎ conn(from: %v) reader.read(buf) failed. closing '%v'", conn.RemoteAddr(), cidHolder.GetClientId())
+					s.Errorf("♦︎︎ conn(from: %v) reader.read(buf) failed. closing '%v': %v", conn.RemoteAddr(), cidHolder.GetClientID(), err)
 				}
 			}
 			return
@@ -276,7 +276,7 @@ func (s *Server) handleRequest(conn net.Conn, tsConnected time.Time, done <-chan
 		// s.Debug("onTcpProcess processing %v bytes (%v, '%v')", nn, buf[:nn], string(buf[:nn]))
 		nn, err = s.onTcpProcess(buf[:n], reader, writer)
 		if err != nil {
-			s.Wrong(err, "onTcpProcess(buf, wr) failed. conn(from: %v), nn=%v. closing '%v'", conn.RemoteAddr(), nn, cidHolder.GetClientId())
+			s.Errorf("onTcpProcess(buf, wr) failed. conn(from: %v), nn=%v. closing '%v': %v", conn.RemoteAddr(), nn, cidHolder.GetClientID(), err)
 			return
 		}
 		// s.Debug("onTcpProcess processed %v bytes (%v, '%v')", nn, buf[:nn], string(buf[:nn]))

@@ -6,6 +6,8 @@ package tcp
 
 import (
 	"github.com/hedzr/go-socketlib/tcp/tls"
+	"github.com/hedzr/logex"
+	"github.com/hedzr/logex/build"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,5 +53,17 @@ func WithServerListening(fn OnTcpServerListening) ServerOpt {
 func WithTlsConfig(s *tls.CmdrTlsConfig) ServerOpt {
 	return func(server *Server) {
 		server.CmdrTlsConfig = s
+	}
+}
+
+func WithLoggerConfig(config *logex.LoggerConfig) ServerOpt {
+	return func(server *Server) {
+		server.Logger = build.New(config)
+	}
+}
+
+func WithLogger(l logex.Logger) ServerOpt {
+	return func(server *Server) {
+		server.Logger = l
 	}
 }

@@ -5,71 +5,72 @@
 package server
 
 import (
-	"fmt"
 	"github.com/hedzr/cmdr"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/sirupsen/logrus"
+	"github.com/hedzr/logex/build"
 	"net"
 	"strconv"
 )
 
 func serverRun(cmd *cmdr.Command, args []string) (err error) {
-	fmt.Printf("Starting server... cmdr.InDebugging = %v\n", cmdr.InDebugging())
+
+	loggerConfig := build.NewLoggerConfig()
+	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+	so := newServerObj(build.New(loggerConfig))
+
+	so.logger.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
 
 	prefixInCommandLine := cmd.GetDottedNamePath()
 	prefixInConfigFile := "tcp.server"
 
-	// src := fmt.Sprintf("%s:%v", cmdr.GetStringR("tcp.server.addr"), cmdr.GetIntR("tcp.server.port"))
-
 	var addr, host, port string
 	host, port, err = net.SplitHostPort(cmdr.GetStringRP(prefixInConfigFile, "addr"))
-	//if err != nil {
-	//	logrus.Errorf("get broker address failed: %v", err)
-	//	return
-	//}
 	if port == "" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInConfigFile, "ports.default"), 10)
 	}
 	if port == "0" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(prefixInCommandLine, "port", 1024), 10)
 		if port == "0" {
-			logrus.Fatalf("invalid port number: %q", port)
+			so.logger.Fatalf("invalid port number: %q", port)
 		}
 	}
 	addr = net.JoinHostPort(host, port)
 
 	var listener net.Listener
-	listener, err = serverBuildListener(addr, prefixInConfigFile, prefixInCommandLine)
+	listener, err = serverBuildListener(so, addr, prefixInConfigFile, prefixInCommandLine)
 	if err != nil {
-		logrus.Fatalf("build listener failed: %v", err)
+		so.logger.Fatalf("build listener failed: %v", err)
 	}
+	so.Listen(listener)
 
-	so := newServerObj(listener)
-	so.Serve()
+	err = so.Serve()
 	return
 }
 
-func serverBuildListener(addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, err error) {
+func serverBuildListener(so *Obj, addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, err error) {
 	var tlsListener net.Listener
-	listener, err = net.Listen("tcp", addr)
+	listener, err = net.Listen(
+		cmdr.GetStringRP(prefixInConfigFile, "network",
+			cmdr.GetStringRP(prefixInCommandLine, "network", "tcp")),
+		addr)
 	if err != nil {
-		logrus.Fatal(err)
+		so.logger.Fatalf("error: %v", err)
 	}
 
 	ctcPrefix := prefixInConfigFile + ".tls"
 	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
-	logrus.Debugf("%v", ctc)
+	so.logger.Debugf("%v", ctc)
 	if ctc.Enabled {
 		tlsListener, err = ctc.NewTlsListener(listener)
 		if err != nil {
-			logrus.Fatal(err)
+			so.logger.Fatalf("error: %v", err)
 		}
 	}
 	if tlsListener != nil {
 		listener = tlsListener
-		fmt.Printf("Listening on %s with TLS enabled.\n", addr)
+		so.logger.Printf("Listening on %s with TLS enabled.", addr)
 	} else {
-		fmt.Printf("Listening on %s.\n", addr)
+		so.logger.Printf("Listening on %s.", addr)
 	}
 	return
 }

@@ -68,6 +68,27 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...Opt) {
 	//	Description("enable TLS mode").
 	//	Group("TLS")
 
+	cmdr.NewString("tcp").Titles("0007.network", "").
+		Description("network: tcp, tcp4, tcp6, unix, unixpacket", `
+
+// The network must be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
+//
+// For TCP networks, if the host in the address parameter is empty or
+// a literal unspecified IP address, Listen listens on all available
+// unicast and anycast IP addresses of the local system.
+// To only use IPv4, use network "tcp4".
+// The address can use a host name, but this is not recommended,
+// because it will create a listener for at most one of the host's IP
+// addresses.
+// If the port in the address parameter is empty or "0", as in
+// "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
+// The Addr method of Listener can be used to discover the chosen
+// port.
+
+`).
+		Group("TLS").
+		AttachTo(tcpServer)
+
 	tcpServer.NewFlagV("root.pem", "100.cacert", "ca", "ca-cert").
 		Description("CA cert path (.cer,.crt,.pem) if it's standalone").
 		Group("TLS").

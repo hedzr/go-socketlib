@@ -5,27 +5,29 @@
 package client
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/hedzr/cmdr"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tool"
-	"github.com/sirupsen/logrus"
-	"io"
+	"github.com/hedzr/logex"
+	"github.com/hedzr/logex/build"
 	"math/rand"
 	"net"
 	"os"
-	"regexp"
 	"sync"
 	"time"
 )
 
 func run(cmd *cmdr.Command, args []string) (err error) {
+	loggerConfig := build.NewLoggerConfig()
+	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+	logger := build.New(loggerConfig)
+
 	done := make(chan bool, 1)
 	prefixInCommandLine := cmd.GetDottedNamePath()
 
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(prefixInCommandLine, "interactive")) {
-		err = clientRun(cmd, args)
+		err = runOneClient(logger, cmd, args)
 
 	} else {
 		dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
@@ -35,7 +37,7 @@ func run(cmd *cmdr.Command, args []string) (err error) {
 		var wg sync.WaitGroup
 		wg.Add(parallel)
 		for x := 0; x < parallel; x++ {
-			go clientRunner(prefixInCommandLine, x, dest, maxTimes, sleep, &wg)
+			go clientRunner(logger, prefixInCommandLine, x, dest, maxTimes, sleep, &wg)
 		}
 		wg.Wait()
 
@@ -43,65 +45,8 @@ func run(cmd *cmdr.Command, args []string) (err error) {
 	}
 
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		logrus.Debugf("signal[%v] caught and exiting this program", s)
+		logger.Debugf("signal[%v] caught and exiting this program", s)
 	})()
-	return
-}
-
-func randRandSeq() string {
-	n := rand.Intn(64)
-	return tool.RandSeqln(n)
-}
-
-func clientRunner(prefixCLI string, tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup) {
-	var (
-		err  error
-		conn net.Conn
-	)
-	defer wg.Done()
-
-	prefix := "tcp.client.tls"
-	// prefixCLI := "tcp.client"
-	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
-	logrus.Debug(ctc)
-	logrus.Debug("dest: ", dest)
-	conn, err = ctc.Dial("tcp", dest)
-
-	if err != nil {
-		if _, t := err.(*net.OpError); t {
-			// fmt.Println("Some problem connecting.")
-			logrus.Errorf("[%d] Some problem connecting: %v", tid, err)
-		} else {
-			// fmt.Println("Unknown error: " + err.Error())
-			logrus.Errorf("[%d] failed: %v", tid, err)
-		}
-		// os.Exit(1)
-		return
-	}
-
-	co := newClientObj(conn)
-	go co.readConnection()
-
-	for i := 0; i < maxTimes; i++ {
-		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
-		err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-		if err != nil {
-			// fmt.Println("Error set writing deadline.")
-			logrus.Errorf("[%d] failed to write daedline: %v", tid, err)
-			break
-		}
-		// _, err = conn.Write([]byte(text))
-		_, err = conn.Write(mqttConnectPkg)
-		if err != nil {
-			// fmt.Println("Error writing to stream.")
-			logrus.Errorf("[%d] failed to write to stream: %v", tid, err)
-			break
-		}
-		logrus.Debug(" #", i, ", ")
-		if sleep > 0 {
-			time.Sleep(sleep)
-		}
-	}
 	return
 }
 
@@ -127,6 +72,67 @@ var mqttSubscribe2TopicsPkg = []byte{
 }
 
 func clientRun(cmd *cmdr.Command, args []string) (err error) {
+	return
+}
+
+func randRandSeq() string {
+	n := rand.Intn(64)
+	return tool.RandSeqln(n)
+}
+
+func clientRunner(logger logex.Logger, prefixCLI string, tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup) {
+	var (
+		err  error
+		conn net.Conn
+	)
+	defer wg.Done()
+
+	prefix := "tcp.client.tls"
+	// prefixCLI := "tcp.client"
+	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
+	logger.Debugf("%v", ctc)
+	logger.Debugf("dest: %v", dest)
+	conn, err = ctc.Dial("tcp", dest)
+
+	if err != nil {
+		if _, t := err.(*net.OpError); t {
+			// fmt.Println("Some problem connecting.")
+			logger.Errorf("[%d] Some problem connecting: %v", tid, err)
+		} else {
+			// fmt.Println("Unknown error: " + err.Error())
+			logger.Errorf("[%d] failed: %v", tid, err)
+		}
+		// os.Exit(1)
+		return
+	}
+
+	co := newClientObj(conn, logger)
+	go co.readConnection()
+
+	for i := 0; i < maxTimes; i++ {
+		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
+		err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+		if err != nil {
+			// fmt.Println("Error set writing deadline.")
+			logger.Errorf("[%d] failed to write daedline: %v", tid, err)
+			break
+		}
+		// _, err = conn.Write([]byte(text))
+		_, err = conn.Write(mqttConnectPkg)
+		if err != nil {
+			// fmt.Println("Error writing to stream.")
+			logger.Errorf("[%d] failed to write to stream: %v", tid, err)
+			break
+		}
+		logger.Debugf(" #%d sent", i)
+		if sleep > 0 {
+			time.Sleep(sleep)
+		}
+	}
+	return
+}
+
+func runOneClient(logger logex.Logger, cmd *cmdr.Command, args []string) (err error) {
 	prefixInCommandLine := cmd.GetDottedNamePath()
 	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
 	fmt.Printf("Connecting to %s...\n", dest)
@@ -137,20 +143,20 @@ func clientRun(cmd *cmdr.Command, args []string) (err error) {
 	prefix := "tcp.client.tls"
 	// prefixCLI := "tcp.client"
 	ctc := tls2.NewCmdrTlsConfig(prefix, prefixInCommandLine)
-	logrus.Debug(ctc)
-	logrus.Debug("dest: ", dest)
+	logger.Debugf("%v", ctc)
+	logger.Debugf("dest: %v", dest)
 	conn, err = ctc.Dial("tcp", dest)
 
 	if err != nil {
 		if _, t := err.(*net.OpError); t {
-			fmt.Println("Some problem connecting.")
+			logger.Errorf("Some problem connecting. error: %v", err)
 		} else {
-			fmt.Println("Unknown error: " + err.Error())
+			logger.Errorf("Unknown error: %v", err)
 		}
 		os.Exit(1)
 	}
 
-	newClientObj(conn).run()
+	newClientObj(conn, logger).run()
 
 	return
 }
@@ -191,103 +197,3 @@ func clientRun(cmd *cmdr.Command, args []string) (err error) {
 // 		}
 // 	}
 // }
-
-func newClientObj(conn net.Conn) (c *clientObj) {
-	c = &clientObj{
-		conn:    conn,
-		quiting: false,
-	}
-	return
-}
-
-type clientObj struct {
-	conn     net.Conn
-	quiting  bool
-	closeErr error
-}
-
-func (c *clientObj) Close() {
-	if c.conn != nil {
-		c.closeErr = c.conn.Close()
-		c.conn = nil
-	}
-}
-
-func (c *clientObj) run() {
-	go c.readConnection()
-
-	fmt.Println("type 'quit' to exit client, '/quit' to exit both server and client.")
-	defer c.Close()
-	for c.quiting == false {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("> ")
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF && c.quiting {
-				break
-			}
-			logrus.Errorf("TCP i/o read failed: %v", err)
-		}
-
-		if text == "quit\n" || text == "exit\n" {
-			break
-		}
-
-		if text == "/quit\n" {
-			c.quiting = true
-		}
-
-		err = c.conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-		if err != nil {
-			fmt.Println("Error set writing deadline.")
-			break
-		}
-		_, err = c.conn.Write([]byte(text))
-		if err != nil {
-			fmt.Println("Error writing to stream.")
-			break
-		}
-	}
-}
-
-func (c *clientObj) readConnection() {
-	for {
-		scanner := bufio.NewScanner(c.conn)
-
-		for c.quiting == false {
-			ok := scanner.Scan()
-			text := scanner.Text()
-
-			command := handleCommands(text)
-			if !command {
-				fmt.Printf("\b\b** %s\n> ", text)
-			}
-
-			if !ok {
-				if c.quiting {
-					return
-				}
-				fmt.Println("Reached EOF on server connection.")
-				break
-			}
-		}
-	}
-}
-
-func handleCommands(text string) bool {
-	r, err := regexp.Compile("^%.*%$")
-	if err == nil {
-		if r.MatchString(text) {
-
-			switch {
-			case text == "%quit%":
-				fmt.Println("\b\bServer is leaving. Hanging up.")
-				os.Exit(0)
-			}
-
-			return true
-		}
-	}
-
-	return false
-}

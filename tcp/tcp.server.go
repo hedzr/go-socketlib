@@ -6,7 +6,7 @@ package tcp
 
 import (
 	"github.com/hedzr/cmdr"
-	"github.com/sirupsen/logrus"
+	"log"
 	"os"
 )
 
@@ -16,7 +16,7 @@ type ClientOpt func(*Client)
 func StartServer(addr string, opts ...ServerOpt) *Server {
 	s := newServer(addr, opts...)
 	if err := s.Start(); err != nil {
-		s.Wrong(err, "can't start tcp server (addr=%v)", addr)
+		s.Errorf("can't start tcp server (addr=%v): %v", addr, err)
 	}
 	return s
 }
@@ -35,7 +35,7 @@ func model1() {
 
 	go func(done <-chan interface{}) {
 		defer func() {
-			logrus.Debug("child goroutine exited.")
+			log.Printf("child goroutine exited.")
 		}()
 		for {
 			select {

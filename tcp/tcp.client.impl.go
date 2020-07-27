@@ -8,8 +8,9 @@ import (
 	"bufio"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/go-socketlib/trace"
-	"github.com/sirupsen/logrus"
+	"github.com/hedzr/logex"
+	"github.com/hedzr/logex/build"
+	"github.com/hedzr/logex/trace"
 	"io"
 	"net"
 	"strconv"
@@ -84,9 +85,21 @@ func WithClientOnDisconnectedFunc(fn OnTcpDisconnectedFunc) ClientOpt {
 	}
 }
 
+func WithClientLoggerConfig(config *logex.LoggerConfig) ClientOpt {
+	return func(client *Client) {
+		client.Logger = build.New(config)
+	}
+}
+
+func WithClientLogger(l logex.Logger) ClientOpt {
+	return func(client *Client) {
+		client.Logger = l
+	}
+}
+
 func newClient(addr string, opts ...ClientOpt) *Client {
 	s := &Client{
-		base:           newBase("tcp.client"),
+		base:           newBase(nil),
 		done:           make(chan struct{}),
 		connectedCh:    make(chan net.Conn),
 		sendCh:         make(chan []byte),
@@ -100,12 +113,12 @@ func newClient(addr string, opts ...ClientOpt) *Client {
 	// s.wrong(err, "can't split addr to host & port")
 	// s.wrong(err, "can't split addr to host & port")
 	if err != nil {
-		s.Wrong(err, "can't split addr to host & port")
+		s.Errorf("can't split addr to host & port: %v", err)
 		return nil
 	}
 	s.port, err = strconv.Atoi(port)
 	if err != nil {
-		s.Wrong(err, "can't parse port to integer")
+		s.Errorf("can't parse port to integer: %v", err)
 		return nil
 	}
 
@@ -114,16 +127,12 @@ func newClient(addr string, opts ...ClientOpt) *Client {
 	}
 
 	if err = s.run(); err != nil {
-		s.Wrong(err, "can't run()")
+		s.Errorf("can't run(): 5v", err)
 	}
 	return s
 }
 
 func (s *Client) run() (err error) {
-	if len(s.Tag) == 0 {
-		s.Tag = "tcp.client"
-	}
-
 	if s.done == nil {
 		s.done = make(chan struct{})
 	}
@@ -144,12 +153,12 @@ func (s *Client) run() (err error) {
 	c, err = s.CmdrTlsConfig.Dial("tcp", addr)
 	// s.conn, err = net.Dial("tcp", addr)
 	if err != nil {
-		s.Wrong(err, "[tcp][client] error connecting to %v", addr)
+		s.Errorf("[tcp][client] error connecting to %v: %v", addr, err)
 		s.Close()
 		return // os.Exit(1)
 	}
 	s.conn = c
-	s.Debug("➠ [tcp][client] connected to %v", addr)
+	s.Debugf("➠ [tcp][client] connected to %v", addr)
 	// defer conn.Close()
 
 	s.wg.Add(1)
@@ -182,9 +191,9 @@ func (s *Client) closeConn() {
 		if s.conn != nil {
 			if err := s.conn.Close(); err != nil {
 				if strings.Contains(err.Error(), "use of closed network connection") {
-					s.Trace("s.conn closed by others.")
+					s.Tracef("s.conn closed by others.")
 				} else {
-					s.Wrong(err, "closing s.conn")
+					s.Errorf("closing s.conn: %v", err)
 				}
 
 				s.conn = nil
@@ -198,7 +207,7 @@ func (s *Client) runLoop(done <-chan struct{}) {
 	defer func() {
 		// timer.Stop()
 		s.closeConn()
-		s.Trace("➠ [tcp][client] runLoop goroutine exited.")
+		s.Tracef("➠ [tcp][client] runLoop goroutine exited.")
 	}()
 
 	for {
@@ -229,9 +238,9 @@ func (s *Client) write_(data []byte) {
 	if data != nil {
 		_, err := s.conn.Write(data)
 		if err != nil {
-			s.Wrong(err, "error to send message")
+			s.Errorf("error to send message: %v", err)
 		} else if trace.IsEnabled() {
-			s.Trace("   -> TCP.W: % x", data)
+			s.Tracef("   -> TCP.W: % x", data)
 		}
 	}
 }
@@ -248,7 +257,7 @@ func (s *Client) write_(data []byte) {
 // }
 
 func (s *Client) defaultOnRead(p []byte, in *bufio.Reader, out *bufio.Writer) (n int, err error) {
-	logrus.Debugf("read: %v", p)
+	s.Debugf("read: %v", p)
 	return 0, nil
 }
 
@@ -276,24 +285,24 @@ func (s *Client) handleRead(conn net.Conn, wg *sync.WaitGroup) {
 		if err != nil {
 			if err == io.EOF {
 				if n > 0 {
-					s.Warn("   tcp: EOF reached with %v bytes", n)
+					s.Warnf("   tcp: EOF reached with %v bytes", n)
 				}
 				if s.IsClosed() {
-					s.Debug("    tcp: EOF reached. socket broken or closed")
+					s.Debugf("    tcp: EOF reached. socket broken or closed")
 					break
 				}
-				s.Debug("    tcp: EOF reached. cancel reading...")
+				s.Debugf("    tcp: EOF reached. cancel reading...")
 				err = connCheck(conn)
 				time.Sleep(300 * time.Millisecond)
 				break // can't recovery from this point, exit and close socket right now
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
 				continue
 			} else if strings.Contains(err.Error(), "use of closed network connection") {
-				s.Trace("conn(from %v) closed by others.", conn.RemoteAddr())
+				s.Tracef("conn(from %v) closed by others.", conn.RemoteAddr())
 			} else if strings.Contains(err.Error(), "connection reset by peer") {
-				s.Trace("conn(from %v) closed by peer.", conn.RemoteAddr())
+				s.Tracef("conn(from %v) closed by peer.", conn.RemoteAddr())
 			} else {
-				s.Wrong(err, "   tcp: read failed. reason: %v", err)
+				s.Errorf("   tcp: read failed. reason: %v", err)
 			}
 			break
 		} else if n == 0 {
@@ -302,11 +311,11 @@ func (s *Client) handleRead(conn net.Conn, wg *sync.WaitGroup) {
 		}
 
 		vBuf := buf[:n]
-		s.Trace("   <- TCP.R [%v]: % x", verbose, vBuf)
+		s.Tracef("   <- TCP.R [%v]: % x", verbose, vBuf)
 
 		if nProcessed, err = s.onTcpProcess(vBuf, nil, o.Writer); err != nil {
-			s.Wrong(err, "   onTcpProcess returns failed")
+			s.Errorf("   onTcpProcess returns failed: %v", err)
 		}
-		s.Trace("   onTcpProcess processed %v bytes", nProcessed)
+		s.Tracef("   onTcpProcess processed %v bytes", nProcessed)
 	}
 }
