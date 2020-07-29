@@ -2,6 +2,7 @@ package coaplib
 
 import (
 	"github.com/hedzr/cmdr"
+	pi2 "github.com/hedzr/go-socketlib/coaplib/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/go-socketlib/tcp/server"
@@ -11,7 +12,7 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 
 	// server
 
-	var pi protocol.Interceptor = newCoAPServer()
+	var pi protocol.Interceptor = pi2.NewCoAPInterceptor()
 	optx1 := server.WithServerProtocolInterceptor(pi)
 	optx2 := server.WithServerPrefixInConfigFile("coaplib.server")
 	opt1 := server.WithCmdrServerOptions(optx1, optx2)
@@ -46,7 +47,7 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 }
 
 func serverRun(cmd *cmdr.Command, args []string, opts ...server.Opt) (err error) {
-	//var pi server.protocolInterceptor = newCoAPServer()
+	//var pi server.protocolInterceptor = NewCoAPInterceptor()
 	//var opt server.Opt = server.WithServerProtocolInterceptor(pi)
 	//return server.DefaultLooper(cmd, args, append(opts, opt)...)
 	return server.DefaultLooper(cmd, args, opts...)

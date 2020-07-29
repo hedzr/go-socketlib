@@ -1,4 +1,4 @@
-package coaplib
+package pi
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/hedzr/log"
 )
 
-func newCoAPServer() protocol.Interceptor {
+func NewCoAPInterceptor() protocol.Interceptor {
 	return &piCoAP{}
 }
 
