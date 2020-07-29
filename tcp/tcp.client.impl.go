@@ -8,9 +8,8 @@ import (
 	"bufio"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/logex"
-	"github.com/hedzr/logex/build"
-	"github.com/hedzr/logex/trace"
+	"github.com/hedzr/log"
+	"github.com/hedzr/log/trace"
 	"io"
 	"net"
 	"strconv"
@@ -85,13 +84,13 @@ func WithClientOnDisconnectedFunc(fn OnTcpDisconnectedFunc) ClientOpt {
 	}
 }
 
-func WithClientLoggerConfig(config *logex.LoggerConfig) ClientOpt {
-	return func(client *Client) {
-		client.Logger = build.New(config)
-	}
-}
+//func WithClientLoggerConfig(config *log.LoggerConfig) ClientOpt {
+//	return func(client *Client) {
+//		client.Logger = build.New(config)
+//	}
+//}
 
-func WithClientLogger(l logex.Logger) ClientOpt {
+func WithClientLogger(l log.Logger) ClientOpt {
 	return func(client *Client) {
 		client.Logger = l
 	}

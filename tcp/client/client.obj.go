@@ -3,7 +3,8 @@ package client
 import (
 	"bufio"
 	"fmt"
-	"github.com/hedzr/logex"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
+	"github.com/hedzr/log"
 	"io"
 	"net"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func newClientObj(conn net.Conn, logger logex.Logger) (c *clientObj) {
+func newClientObj(conn net.Conn, logger log.Logger) (c *clientObj) {
 	c = &clientObj{
 		Logger:  logger,
 		conn:    conn,
@@ -21,10 +22,19 @@ func newClientObj(conn net.Conn, logger logex.Logger) (c *clientObj) {
 }
 
 type clientObj struct {
-	logex.Logger
-	conn     net.Conn
-	quiting  bool
-	closeErr error
+	log.Logger
+	conn                net.Conn
+	protocolInterceptor protocol.Interceptor
+	quiting             bool
+	closeErr            error
+}
+
+func (c *clientObj) ProtocolInterceptor() protocol.Interceptor {
+	return c.protocolInterceptor
+}
+
+func (c *clientObj) SetProtocolInterceptor(pi protocol.Interceptor) {
+	c.protocolInterceptor = pi
 }
 
 func (c *clientObj) Close() {

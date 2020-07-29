@@ -1,16 +1,38 @@
 package base
 
 import (
-	"github.com/hedzr/logex"
-	"github.com/hedzr/logex/build"
+	"context"
+	"github.com/hedzr/log"
+	"net"
 )
 
 type base struct {
-	logex.Logger
+	log.Logger
 }
 
-func newBase(config *logex.LoggerConfig) base {
+func newBase( /*config *log.LoggerConfig*/ ) base {
 	return base{
-		build.New(config),
+		log.NewStdLogger(), // build.New(config),
+	}
+}
+
+type Conn interface {
+	Logger() log.Logger
+
+	Close()
+
+	// RawWrite does write through the internal net.Conn
+	RawWrite(ctx context.Context, message []byte) (n int, err error)
+}
+
+type UdpPacket struct {
+	RemoteAddr *net.UDPAddr
+	Data       []byte
+}
+
+func NewUdpPacket(remoteAddr *net.UDPAddr, data []byte) *UdpPacket {
+	return &UdpPacket{
+		RemoteAddr: remoteAddr,
+		Data:       data,
 	}
 }

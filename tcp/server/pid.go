@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/cmdr-addons/pkg/plugins/dex/sig"
-	"github.com/hedzr/logex/exec"
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/log/exec"
 	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
 	"log"
@@ -13,11 +14,8 @@ import (
 	"strconv"
 )
 
-const DefaultPidPathTemplate = "/var/run/$APPNAME/$APPNAME.pid"
-const DefaultPidDirTemplate = "/var/run/$APPNAME"
-
 func makePidFS(prefixInCommandLine string) *pidFileStruct {
-	return newPidFile(cmdr.GetStringRP(prefixInCommandLine, "pid-path", DefaultPidPathTemplate))
+	return newPidFile(cmdr.GetStringRP(prefixInCommandLine, "pid-path", base.DefaultPidPathTemplate))
 }
 
 func makePidFSFromDir(dir string) *pidFileStruct {

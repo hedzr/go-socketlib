@@ -5,8 +5,7 @@
 package tcp
 
 import (
-	"github.com/hedzr/logex"
-	"github.com/hedzr/logex/build"
+	"github.com/hedzr/log"
 )
 
 //import (
@@ -20,17 +19,17 @@ import (
 //}
 
 type base struct {
-	logex.Logger
+	log.Logger
 }
 
-func newBaseWithLogger(l logex.Logger) base {
+func newBaseWithLogger(l log.Logger) base {
 	return base{
 		l,
 	}
 }
 
-func newBase(config *logex.LoggerConfig) base {
+func newBase(config *log.LoggerConfig) base {
 	return base{
-		build.New(config),
+		log.NewStdLogger(), // build.New(config),
 	}
 }

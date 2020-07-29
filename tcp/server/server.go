@@ -5,17 +5,20 @@
 package server
 
 import (
+	"context"
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp"
-	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 	"net"
 	"os"
 	"strconv"
 )
 
-func newServer(config *Config, opts ...Opt) ServeFunc {
-	so := newServerObj(build.New(config.LoggerConfig))
+func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
+	var logger log.Logger
+	// logger = build.New(config.LoggerConfig)
+	so = newServerObj(logger)
 
 	for _, opt := range opts {
 		opt(so)
@@ -23,54 +26,10 @@ func newServer(config *Config, opts ...Opt) ServeFunc {
 
 	so.pfs = makePidFSFromDir(config.PidDir)
 
-	so.Infof("Starting server...")
-
-	var addr, host, port string
-	var err error
-	host, port, err = net.SplitHostPort(config.Addr)
-	addr = net.JoinHostPort(host, port)
-
-	var listener net.Listener
-	var tlsEnabled bool
-	listener, tlsEnabled, err = serverBuildListener(so, addr, config.PrefixInConfigFile, config.PrefixInCommandLine)
-	if err != nil {
-		so.Fatalf("build listener failed: %v", err)
-	}
-	so.Listen(listener)
-
-	if err = so.pfs.Create(); err != nil {
-		so.Fatalf("failed to create pid file: %v", err)
-	} else {
-		so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
-	}
-
-	if tlsEnabled {
-		so.Printf("Listening on %s with TLS enabled.", addr)
-	} else {
-		so.Printf("Listening on %s.", addr)
-	}
-
-	return so.Serve
-}
-
-func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
-
-	loggerConfig := build.NewLoggerConfig()
-	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
-
-	config := NewConfig()
-	config.PrefixInCommandLine = cmd.GetDottedNamePath()
-	config.PrefixInConfigFile = "tcp.server"
-	config.LoggerConfig = loggerConfig
-
-	so := newServerObj(build.New(loggerConfig))
-
-	for _, opt := range opts {
-		opt(so)
-	}
-
 	config.PrefixInConfigFile = so.prefix
 	so.pfs = makePidFS(config.PrefixInCommandLine)
+	so.netType = cmdr.GetStringRP(config.PrefixInConfigFile, "network",
+		cmdr.GetStringRP(config.PrefixInCommandLine, "network", so.netType))
 
 	if cmdr.GetBoolRP(config.PrefixInCommandLine, "stop", false) {
 		if err = findAndShutdownTheRunningInstance(so.pfs); err != nil {
@@ -81,9 +40,10 @@ func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 
 	so.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
 	so.Tracef("    logging.level: %v", so.Logger.GetLevel())
+	// so.Infof("Starting server...")
 
-	var addr, host, port string
-	host, port, err = net.SplitHostPort(cmdr.GetStringRP(config.PrefixInConfigFile, "addr"))
+	var host, port string
+	host, port, err = net.SplitHostPort(config.Addr)
 	if port == "" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
 	}
@@ -93,61 +53,93 @@ func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 			so.Fatalf("invalid port number: %q", port)
 		}
 	}
-	addr = net.JoinHostPort(host, port)
+	//if host == "" {
+	//	host = "0.0.0.0"
+	//	// forceIPv6 make all IPv6 ip-addresses of this PC are listened, instead of its IPv4 addresses
+	//	const forceIPv6 = false
+	//	if forceIPv6 {
+	//		host = "[::]"
+	//	}
+	//}
+	config.Addr = net.JoinHostPort(host, port)
 
-	var listener net.Listener
-	var tlsEnabled bool
-	listener, tlsEnabled, err = serverBuildListener(so, addr, config.PrefixInConfigFile, config.PrefixInCommandLine)
-	if err != nil {
-		so.Fatalf("build listener failed: %v", err)
-	}
-	so.Listen(listener)
-
-	if err = so.pfs.Create(); err != nil {
-		so.Fatalf("failed to create pid file: %v", err)
-	} else {
-		so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
-	}
-
-	go func() {
-		if tlsEnabled {
-			so.Printf("Listening on %s with TLS enabled.", addr)
-		} else {
-			so.Printf("Listening on %s.", addr)
+	switch so.isUDP() {
+	case true:
+		err = so.createUDPListener(config)
+		if err != nil {
+			so.Fatalf("build UDP listener failed: %v", err)
 		}
-		if err = so.Serve(); err != nil {
+
+		if err = so.pfs.Create(); err != nil {
+			so.Fatalf("failed to create pid file: %v", err)
+		} else {
+			so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
+		}
+
+	default:
+		tlsEnabled, err = so.createListener(config)
+		if err != nil {
+			so.Fatalf("build listener failed: %v", err)
+		}
+
+		if err = so.pfs.Create(); err != nil {
+			so.Fatalf("failed to create pid file: %v", err)
+		} else {
+			so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
+		}
+
+	}
+
+	serve = so.Serve
+	return
+}
+
+func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
+	loggerConfig := log.NewLoggerConfig()
+	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+
+	config := base.NewConfig()
+	config.PrefixInCommandLine = cmd.GetDottedNamePath()
+	config.PrefixInConfigFile = "tcp.server"
+	config.LoggerConfig = loggerConfig
+
+	var logger log.Logger
+	logger = build.New(config.LoggerConfig)
+	opts = append(opts, WithServerLogger(logger))
+
+	var (
+		serve      ServeFunc
+		so         *Obj
+		tlsEnabled bool
+	)
+	serve, so, tlsEnabled, err = newServer(config, opts...)
+	if err != nil {
+		if so != nil {
+			so.Fatalf("build listener failed: %v", err)
+		}
+		return
+	}
+
+	done := make(chan bool, 1)
+	go func() {
+		defer func() {
+			done <- true
+		}()
+		if tlsEnabled {
+			so.Printf("Listening on %s with TLS enabled.", config.Addr)
+		} else {
+			so.Printf("Listening on %s.", config.Addr)
+		}
+
+		baseCtx := context.Background()
+		if err = serve(baseCtx); err != nil {
 			so.Errorf("Serve() failed: %v", err)
 		}
 	}()
 
-	tcp.HandleSignals(func(s os.Signal) {
+	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
 		so.RequestShutdown()
 	})()
-	return
-}
 
-func serverBuildListener(so *Obj, addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, tls bool, err error) {
-	var tlsListener net.Listener
-	listener, err = net.Listen(
-		cmdr.GetStringRP(prefixInConfigFile, "network",
-			cmdr.GetStringRP(prefixInCommandLine, "network", "tcp")),
-		addr)
-	if err != nil {
-		so.Fatalf("error: %v", err)
-	}
-
-	ctcPrefix := prefixInConfigFile + ".tls"
-	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
-	so.Debugf("%v", ctc)
-	if ctc.Enabled {
-		tlsListener, err = ctc.NewTlsListener(listener)
-		if err != nil {
-			so.Fatalf("error: %v", err)
-		}
-	}
-	if tlsListener != nil {
-		listener = tlsListener
-		tls = true
-	}
 	return
 }

@@ -4,17 +4,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/hedzr/logex"
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/log"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
 type Connection interface {
-	Logger() logex.Logger
-
-	Close()
-	// RawWrite does write through the internal net.Conn
-	RawWrite(ctx context.Context, message []byte) (n int, err error)
+	base.Conn
 
 	// HandleConnection is used by serverObj
 	HandleConnection(ctx context.Context)
@@ -27,6 +25,7 @@ type Connection interface {
 
 type connectionObj struct {
 	serverObj *Obj
+	uid       uint64
 	conn      net.Conn
 	wrCh      chan []byte
 	closeErr  error
@@ -37,6 +36,7 @@ type connectionObj struct {
 func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connection) {
 	s = &connectionObj{
 		serverObj: serverObj,
+		uid:       atomic.AddUint64(&serverObj.uidConn, 1),
 		conn:      conn,
 		wrCh:      make(chan []byte, 256),
 		//exitCh:    make(chan struct{}),
@@ -45,7 +45,7 @@ func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connectio
 	return
 }
 
-func (s *connectionObj) Logger() logex.Logger {
+func (s *connectionObj) Logger() log.Logger {
 	return s.serverObj
 }
 
@@ -65,9 +65,9 @@ func (s *connectionObj) Close() {
 }
 
 func (s *connectionObj) HandleConnection(ctx context.Context) {
-	s.serverObj.Debugf("Client connected from " + s.RemoteAddrString())
+	s.serverObj.Debugf("[#%d] Client connected from %q", s.uid, s.RemoteAddrString())
 	defer func() {
-		s.serverObj.Debugf("Client at " + s.RemoteAddrString() + " disconnected.")
+		s.serverObj.Debugf("[#%d] Client at %q disconnected.", s.uid, s.RemoteAddrString())
 	}()
 
 	if s.serverObj.protocolInterceptor != nil {
@@ -98,13 +98,13 @@ func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 		if processed, err := s.serverObj.protocolInterceptor.OnReading(ctx, s, msg); processed {
 			return
 		} else if err != nil {
-			s.serverObj.Errorf("error occurs on intercepting reading bytes: %v", err)
+			s.serverObj.Errorf("[#%d] error occurs on intercepting reading bytes: %v", s.uid, err)
 			return
 		}
 	}
 
 	message := string(msg)
-	s.serverObj.Tracef("> %v", message)
+	s.serverObj.Tracef("> [#%d] %v", s.uid, message)
 
 	if len(message) > 0 && message[0] == '/' {
 		switch {
@@ -138,7 +138,7 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 		case <-ctx.Done():
 			// If the request gets cancelled, log it
 			// to STDERR
-			s.serverObj.Errorf("request cancelled")
+			s.serverObj.Errorf("[#%d] request cancelled", s.uid)
 		}
 	}
 }
@@ -158,20 +158,32 @@ func (s *connectionObj) doWrite(ctx context.Context, msg []byte) {
 			if processed, err := s.serverObj.protocolInterceptor.OnWriting(ctx, s, msg); processed {
 				return
 			} else if err != nil {
-				s.serverObj.Errorf("error occurs on intercepting writing bytes: %v", err)
+				s.serverObj.Errorf("[#%d] error occurs on intercepting writing bytes: %v", s.uid, err)
 				return
 			}
 		}
 
-		n, err := s.conn.Write(msg)
+		var err error
+		var n int
+		err = s.conn.SetWriteDeadline(time.Now().Add(s.serverObj.WriteTimeout))
 		if err != nil {
-			s.serverObj.Errorf("Write message failed: %v (%v bytes written)", err, n)
+			s.serverObj.Errorf("[#%d] error set writing deadline: %v", s.uid, err)
+			return
+		}
+		n, err = s.conn.Write(msg)
+		if err != nil {
+			s.serverObj.Errorf("[#%d] Write message failed: %v (%v bytes written)", s.uid, err, n)
 		}
 	}
 }
 
 func (s *connectionObj) RawWrite(ctx context.Context, msg []byte) (n int, err error) {
 	if s.conn != nil {
+		err = s.conn.SetWriteDeadline(time.Now().Add(s.serverObj.WriteTimeout))
+		if err != nil {
+			s.serverObj.Errorf("[#%d] error set writing deadline: %v", s.uid, err)
+			return
+		}
 		n, err = s.conn.Write(msg)
 	}
 	return
