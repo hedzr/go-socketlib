@@ -38,7 +38,7 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 		return
 	}
 
-	so.Infof("Starting server... cmdr.InDebugging = %v", cmdr.InDebugging())
+	so.Infof("Starting server (%v)... cmdr.InDebugging = %v", so.netType, cmdr.InDebugging())
 	so.Tracef("    logging.level: %v", so.Logger.GetLevel())
 	// so.Infof("Starting server...")
 

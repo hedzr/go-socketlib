@@ -33,8 +33,7 @@ func DefaultLooper(cmd *cmdr.Command, args []string) (err error) {
 		// prefixCLI := "tcp.client"
 	)
 
-	loggerConfig := build.NewLoggerConfig()
-	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+	loggerConfig := cmdr.NewLoggerConfig()
 	logger := build.New(loggerConfig)
 
 	config := base.NewConfig()
@@ -42,32 +41,62 @@ func DefaultLooper(cmd *cmdr.Command, args []string) (err error) {
 	config.PrefixInConfigFile = prefix
 	config.LoggerConfig = loggerConfig
 
-	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixCLI, "host"), cmdr.GetIntRP(prefixCLI, "port"))
 	netType := cmdr.GetStringRP(config.PrefixInConfigFile, "network",
 		cmdr.GetStringRP(config.PrefixInCommandLine, "network", "tcp"))
+
+	var host, port string
+	host, port, err = net.SplitHostPort(config.Addr)
+	if port == "" {
+		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
+	}
+	if port == "0" {
+		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInCommandLine, "port", 1024), 10)
+		if port == "0" {
+			logger.Fatalf("invalid port number: %q", port)
+		}
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	config.Addr = net.JoinHostPort(host, port)
 
 	if strings.HasPrefix(netType, "udp") {
 		// udp
 
 		ctx := context.Background()
+		defer func() {
+			logger.Debugf("end.")
+		}()
+
 		co := newClientObj(conn, logger)
+		defer co.Close()
+
 		uo := udp.NewUdpObj(co, nil, nil)
-		if err = uo.Create(netType, config); err != nil {
+		if err = uo.Connect(netType, config); err != nil {
 			logger.Errorf("failed to create udp socket handler: %v", err)
 		}
 		go func() {
 			if err = uo.Serve(ctx); err != nil {
 				logger.Errorf("failed to communicate via udp socket handler: %v", err)
 			}
+			logger.Debugf("Serve() end.")
 		}()
+
+		_, err = uo.WriteThrough([]byte("hello"))
+		//uo.WriteTo(nil, []byte("hello"))
+		logger.Debugf("'hello' wrote: %v", err)
+
+		//_, err = uo.WriteThrough([]byte("world"))
+		uo.WriteTo(nil, []byte("world"))
+		logger.Debugf("'world' wrote: %v", err)
 
 		b := make([]byte, 1)
 		os.Stdin.Read(b)
-		_, _ = uo.WriteThrough([]byte("hello"))
+		// _, _ = uo.WriteThrough([]byte("hello"))
 
-		n, data := 0, make([]byte, 1024)
-		n, err = conn.Read(data)
-		fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
+		//n, data := 0, make([]byte, 1024)
+		//n, err = conn.Read(data)
+		//fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
 
 		return
 	}
@@ -75,7 +104,7 @@ func DefaultLooper(cmd *cmdr.Command, args []string) (err error) {
 	// tcp, unix
 
 	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
-	conn, err = ctc.Dial(netType, dest)
+	conn, err = ctc.Dial(netType, config.Addr)
 
 	if err != nil {
 		if _, t := err.(*net.OpError); t {
@@ -108,7 +137,7 @@ func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 		// prefixCLI := "tcp.client"
 	)
 
-	loggerConfig := build.NewLoggerConfig()
+	loggerConfig := log.NewLoggerConfig()
 	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
 	logger := build.New(loggerConfig)
 
@@ -132,13 +161,22 @@ func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 			logger.Fatalf("invalid port number: %q", port)
 		}
 	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
 	config.Addr = net.JoinHostPort(host, port)
 
 	if strings.HasPrefix(netType, "udp") {
 		// udp
 
 		ctx := context.Background()
+		defer func() {
+			logger.Debugf("end.")
+		}()
+
 		co := newClientObj(conn, logger)
+		defer co.Close()
+
 		uo := udp.NewUdpObj(co, nil, nil)
 		if err = uo.Connect(netType, config); err != nil {
 			logger.Fatalf("failed to create udp socket handler: %v", err)
@@ -147,6 +185,7 @@ func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 			if err = uo.Serve(ctx); err != nil {
 				logger.Errorf("failed to communicate via udp socket handler: %v", err)
 			}
+			logger.Debugf("Serve() end.")
 		}()
 
 		_, err = uo.WriteThrough([]byte("hello"))
@@ -164,7 +203,7 @@ func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 		//n, err = uo.ReadThrough(data)
 		//fmt.Printf("read %s from <%s>\n", string(data[:n]), uo.RemoteAddr())
 
-		co.Close()
+		// co.Close()
 
 		return
 	}

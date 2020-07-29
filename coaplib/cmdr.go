@@ -8,14 +8,18 @@ import (
 )
 
 func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
+
+	// server
+
 	var pi protocol.Interceptor = newCoAPServer()
 	optx1 := server.WithServerProtocolInterceptor(pi)
 	optx2 := server.WithServerPrefixInConfigFile("coaplib.server")
+	opt1 := server.WithCmdrServerOptions(optx1, optx2)
+	opt2 := server.WithCmdrPort(5688)
+	opt3 := server.WithCmdrCommandAction(serverRun)
+	opt4 := server.WithCmdrUDPMode(true)
 
-	opt1 := server.WithCmdrPort(1379)
-	opt2 := server.WithCmdrCommandAction(serverRun)
-	opt3 := server.WithCmdrServerOptions(optx1, optx2)
-	server.AttachToCmdr(cmd, append(opts, opt1, opt2, opt3)...)
+	server.AttachToCmdr(cmd, append(opts, opt1, opt2, opt3, opt4)...)
 
 	serverCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("server"))
 	cmdr.NewBool().
@@ -24,11 +28,13 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 		Group("zzz1.Dry Run").
 		AttachTo(serverCmdrOpt)
 
-	//
+	// client
 
-	ox1 := client.WithCmdrPort(1379)
+	ox1 := client.WithCmdrPort(5688)
 	ox2 := client.WithCmdrCommandAction(clientRun)
-	client.AttachToCmdr(cmd, ox1, ox2)
+	ox3 := client.WithCmdrUDPMode(true)
+
+	client.AttachToCmdr(cmd, ox1, ox2, ox3)
 
 	clientCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("client"))
 	cmdr.NewBool().
