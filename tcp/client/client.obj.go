@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
@@ -9,23 +10,8 @@ import (
 	"net"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 )
-
-type Opt func(obj *clientObj)
-
-func WithClientPrefixPrefix(prefixPrefix string) Opt {
-	return func(obj *clientObj) {
-		obj.prefixInConfigFile = strings.Join([]string{prefixPrefix, "client", "tls"}, ".")
-	}
-}
-
-func WithClientProtocolInterceptor(fn protocol.Interceptor) Opt {
-	return func(obj *clientObj) {
-		obj.protocolInterceptor = fn
-	}
-}
 
 func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) {
 	c = &clientObj{
@@ -45,7 +31,7 @@ func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) 
 type clientObj struct {
 	log.Logger
 	conn                net.Conn // for tcp, unix
-	protocolInterceptor protocol.ClientInterceptor
+	protocolInterceptor protocol.Interceptor
 	quiting             bool
 	closeErr            error
 	prefixInConfigFile  string
@@ -59,10 +45,33 @@ func (c *clientObj) SetProtocolInterceptor(pi protocol.Interceptor) {
 	c.protocolInterceptor = pi
 }
 
+type connWrapper struct {
+	*clientObj
+}
+
+func (c *connWrapper) Logger() log.Logger {
+	return c.clientObj.Logger
+}
+
+func (c *connWrapper) Close() {
+	_ = c.clientObj.conn.Close()
+}
+
+func (c *connWrapper) RawWrite(ctx context.Context, message []byte) (n int, err error) {
+	n, err = c.clientObj.conn.Write(message)
+	return
+}
+
 func (c *clientObj) Close() {
 	if c.conn != nil {
+		if c.protocolInterceptor != nil {
+			c.protocolInterceptor.OnClosing(&connWrapper{clientObj: c}, 0)
+		}
 		c.closeErr = c.conn.Close()
 		c.conn = nil
+		if c.protocolInterceptor != nil {
+			c.protocolInterceptor.OnClosed(&connWrapper{clientObj: c}, 0)
+		}
 	}
 }
 

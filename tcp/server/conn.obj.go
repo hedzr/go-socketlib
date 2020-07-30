@@ -52,7 +52,7 @@ func (s *connectionObj) Logger() log.Logger {
 func (s *connectionObj) Close() {
 	if s.conn != nil {
 		if s.serverObj.protocolInterceptor != nil {
-			s.serverObj.protocolInterceptor.OnClosing(s)
+			s.serverObj.protocolInterceptor.OnClosing(s, 0)
 		}
 		s.closeErr = s.conn.Close()
 		s.conn = nil
@@ -60,7 +60,7 @@ func (s *connectionObj) Close() {
 	close(s.wrCh)
 	//close(s.exitCh)
 	if s.serverObj.protocolInterceptor != nil {
-		s.serverObj.protocolInterceptor.OnClosed(s)
+		s.serverObj.protocolInterceptor.OnClosed(s, 0)
 	}
 }
 

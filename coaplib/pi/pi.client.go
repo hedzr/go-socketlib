@@ -15,7 +15,7 @@ type pic struct {
 }
 
 func (p *pic) OnConnected(ctx context.Context, c base.Conn) {
-	c.Logger.Debugf("OnUDPReading")
+	c.Logger().Debugf("OnUDPReading")
 	return
 
 }

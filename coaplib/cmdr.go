@@ -2,7 +2,7 @@ package coaplib
 
 import (
 	"github.com/hedzr/cmdr"
-	pi2 "github.com/hedzr/go-socketlib/coaplib/pi"
+	"github.com/hedzr/go-socketlib/coaplib/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/go-socketlib/tcp/server"
@@ -12,8 +12,8 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 
 	// server
 
-	var pi protocol.Interceptor = pi2.NewCoAPInterceptor()
-	optx1 := server.WithServerProtocolInterceptor(pi)
+	var pis protocol.Interceptor = pi.NewCoAPInterceptor()
+	optx1 := server.WithServerProtocolInterceptor(pis)
 	opt1 := server.WithCmdrServerOptions(optx1)
 	opt2 := server.WithCmdrPort(5688)
 	opt3 := server.WithCmdrCommandAction(server.DefaultLooper)
@@ -31,14 +31,15 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 
 	// client
 
-	ox1 := client.WithCmdrPort(5688)
-	optcx1 := client.WithClientProtocolInterceptor(pi)
-	ox2 := client.WithCmdrClientOptions(optcx1)
-	ox2 := client.WithCmdrUDPMode(true)
-	ox3 := client.WithCmdrCommandAction(client.DefaultLooper)
+	var pic = pi.NewCoAPClientInterceptor()
+	optcx1 := client.WithClientProtocolInterceptor(pic)
+	ox1 := client.WithCmdrClientOptions(optcx1)
+	ox2 := client.WithCmdrPort(5688)
+	ox3 := client.WithCmdrUDPMode(true)
+	ox4 := client.WithCmdrCommandAction(client.DefaultLooper)
 	ox5 := client.WithCmdrPrefixPrefix("coap")
 
-	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox5)
+	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox4, ox5)
 
 	clientCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("client"))
 	cmdr.NewBool().
@@ -46,5 +47,6 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 		Description("In dry-run mode, arguments will be parsed, tcp listener will not be stared.").
 		Group("zzz1.Dry Run").
 		AttachTo(clientCmdrOpt)
+	clientCmdrOpt.ToCommand().FindFlag("host").DefaultValue = "coap://coap.me"
 
 }

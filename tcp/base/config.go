@@ -95,6 +95,9 @@ func (c *Config) BuildServerAddr() (err error) {
 
 func (c *Config) BuildAddr() (err error) {
 	var host, port string
+	if c.Addr == "" {
+		c.Addr = cmdr.GetStringRP(c.PrefixInCommandLine, "addr", ":"+cmdr.GetStringRP(c.PrefixInCommandLine, "port", "1024"))
+	}
 	host, port, err = net.SplitHostPort(c.Addr)
 	if port == "" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)

@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 )
 
 func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err error) {
@@ -77,7 +78,7 @@ func udpLoop(config *base.Config, opts ...Opt) (err error) {
 		config.Logger.Debugf("Serve() end.")
 	}()
 
-	_, err = uo.WriteThrough([]byte("hello"))
+	_, err = uo.RawWrite(ctx, []byte("hello"))
 	//uo.WriteTo(nil, []byte("hello"))
 	config.Logger.Debugf("'hello' wrote: %v", err)
 
@@ -85,6 +86,7 @@ func udpLoop(config *base.Config, opts ...Opt) (err error) {
 	uo.WriteTo(nil, []byte("world"))
 	config.Logger.Debugf("'world' wrote: %v", err)
 
+	time.Sleep(time.Second)
 	config.PressEnterToExit()
 	// _, _ = uo.WriteThrough([]byte("hello"))
 

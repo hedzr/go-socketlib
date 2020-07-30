@@ -108,34 +108,46 @@ func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
 		network = "udp"
 	}
 
-	theClient.NewFlagV(b.port, "port", "p").
+	cmdr.NewInt(b.port).
+		Titles("port", "p").
 		Description("The port to connect to").
 		Group("Test").
-		Placeholder("PORT")
+		Placeholder("PORT").
+		AttachTo(theClient)
 
-	theClient.NewFlagV("127.0.0.1", "host", "h", "address", "addr").
+	cmdr.NewString("127.0.0.1").
+		Titles("host", "h", "address", "addr").
 		Description("The hostname or IP to connect to").
 		Group("Test").
-		Placeholder("HOST-or-IP")
+		Placeholder("HOST-or-IP").
+		AttachTo(theClient)
 	// don't use localhost, it may cause 'lookup localhost: no such host' error in debug mode.
 
-	theClient.NewFlagV(100, "times", "t").
+	cmdr.NewInt(100).
+		Titles("times", "t").
 		Description("repeat sending times").
 		Group("Test").
-		Placeholder("n")
+		Placeholder("n").
+		AttachTo(theClient)
 
-	theClient.NewFlagV(3, "parallel", "r").
+	cmdr.NewInt(3).
+		Titles("parallel", "r").
 		Description("how many clients parallel").
 		Group("Test").
-		Placeholder("n")
+		Placeholder("n").
+		AttachTo(theClient)
 
-	theClient.NewFlagV(time.Duration(0), "sleep").
+	cmdr.NewDuration(time.Duration(0)).
+		Titles("sleep", "").
 		Description("sleep time between each sending").
-		Group("Test")
+		Group("Test").
+		AttachTo(theClient)
 
-	theClient.NewFlagV(false, "interactive", "i").
+	cmdr.NewBool().
+		Titles("interactive", "i").
 		Description("run client in interactive mode").
-		Group("Test")
+		Group("Test").
+		AttachTo(theClient)
 
 	cmdr.NewString(network).
 		Titles("0007.network", "").
@@ -166,30 +178,44 @@ func (b *builder) attachTcpTLSClientFlags(theClient cmdr.OptCmd) {
 		Description("enable TLS mode").
 		Group("TLS")
 
-	theClient.NewFlagV("root.pem", "cacert", "ca").
+	cmdr.NewString("root.pem").
+		Titles("cacert", "ca").
 		Description("CA cert path (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	theClient.NewFlagV("cert.pem", "server-cert", "sc").
+		Placeholder("PATH").
+		AttachTo(theClient)
+	cmdr.NewString("cert.pem").
+		Titles("server-cert", "sc").
 		Description("server public-cert path for dual auth (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	theClient.NewFlagV("client.pem", "cert").
+		Placeholder("PATH").
+		AttachTo(theClient)
+	cmdr.NewString("client.pem").
+		Titles("cert", "cert").
 		Description("[client-auth] client public-cert path for dual auth (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	theClient.NewFlagV("client.key", "key").
+		Placeholder("PATH").
+		AttachTo(theClient)
+	cmdr.NewString("client.key").
+		Titles("key", "key").
 		Description("[client-auth] client private-key path for dual auth (.cer,.crt,.pem)").
 		Group("TLS").
-		Placeholder("PATH")
-	theClient.NewFlagV(false, "client-auth").
+		Placeholder("PATH").
+		AttachTo(theClient)
+	cmdr.NewBool().
+		Titles("client-auth", "").
 		Description("[client-auth] enable client cert authentication").
-		Group("TLS")
-	theClient.NewFlagV(false, "insecure", "k").
+		Group("TLS").
+		AttachTo(theClient)
+	cmdr.NewBool().
+		Titles("insecure", "k").
 		Description("[client-auth] ignore server cert validation (for self-signed server)").
-		Group("TLS")
-	theClient.NewFlagV(2, "tls-version").
+		Group("TLS").
+		AttachTo(theClient)
+	cmdr.NewInt(2).
+		Titles("tls-version", "").
 		Description("tls-version: 0,1,2,3").
-		Group("TLS")
+		Group("TLS").
+		AttachTo(theClient)
 
 }

@@ -51,12 +51,18 @@ func (s *Obj) IsConnected() bool {
 }
 
 func (s *Obj) Close() (err error) {
+	if s.ProtocolInterceptor() != nil {
+		s.ProtocolInterceptor().OnClosing(&connWrapper{s}, 0)
+	}
 	close(s.rdCh)
 	close(s.wrCh)
 	if s.conn != nil {
 		err = s.conn.Close()
 		// s.conn = nil
 		s.Debugf("s.conn closed: %v", err)
+	}
+	if s.ProtocolInterceptor() != nil {
+		s.ProtocolInterceptor().OnClosed(&connWrapper{s}, 0)
 	}
 	return
 }
@@ -100,12 +106,24 @@ func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Conf
 				s.connected = true
 				//err = s.conn.SetWriteBuffer(8192)
 				if s.ProtocolInterceptor() != nil {
-					s.ProtocolInterceptor().OnConnected(ctx, s.conn)
+					s.ProtocolInterceptor().OnConnected(baseCtx, &connWrapper{s})
 				}
 			}
 		}
 	}
 	return
+}
+
+type connWrapper struct {
+	*Obj
+}
+
+func (c *connWrapper) Logger() log.Logger {
+	return c.Obj.Logger
+}
+
+func (c *connWrapper) Close() {
+	_ = c.conn.Close()
 }
 
 // Create a server listener via net.ListenUDP()
@@ -174,8 +192,7 @@ func (s *Obj) ReadThrough(data []byte) (n int, err error) {
 	return s.conn.Read(data)
 }
 
-// WriteThrough send binary data to a connected *UDPConn (via udp.Obj.Create())
-func (s *Obj) WriteThrough(data []byte) (n int, err error) {
+func (s *Obj) RawWrite(ctx context.Context, data []byte) (n int, err error) {
 	deadline := time.Now().Add(s.WriteTimeout)
 	err = s.conn.SetWriteDeadline(deadline)
 	if err != nil {
@@ -184,13 +201,18 @@ func (s *Obj) WriteThrough(data []byte) (n int, err error) {
 	return s.conn.Write(data)
 }
 
+// WriteThrough send binary data to a connected *UDPConn (via udp.Obj.Create())
+func (s *Obj) WriteThrough(data []byte) (n int, err error) {
+	return s.RawWrite(context.Background(), data)
+}
+
 // Write sent udp-packet to a known peer asynchronously
 func (s *Obj) Write(data *base.UdpPacket) {
 	s.wrCh <- data
 }
 
 // WriteTo sent udp-packet to a known peer asynchronously.
-// remoteAddr can be nil for a client Create() ok.
+// remoteAddr can be nil if sending for a client connected by udp.Create().
 func (s *Obj) WriteTo(remoteAddr *net.UDPAddr, data []byte) {
 	s.wrCh <- &base.UdpPacket{
 		RemoteAddr: remoteAddr,
@@ -210,21 +232,25 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 	}
 
 	if packet.RemoteAddr == nil {
-		s.Debugf("[udp.doWrite] writing: %v", string(packet.Data))
+		s.Debugf("[udp.doWrite] writing: %v / %v", string(packet.Data), packet)
 		deadline := time.Now().Add(s.WriteTimeout)
 		err = s.conn.SetWriteDeadline(deadline)
 		if err != nil {
 			return
 		}
 		_, err = s.conn.Write(packet.Data)
-		s.Debugf("[udp.doWrite] written: %v", err)
+		if err != nil {
+			s.Errorf("[udp.doWrite] written error: %v", err)
+		}
 		return
 	}
 
 	//s.conn.SetWriteBuffer(33)
-	s.Debugf("[udp.doWrite] writing: %v", string(packet.Data))
+	s.Debugf("[udp.doWrite] WriteToUDP: %v / %v", string(packet.Data), packet)
 	_, err = s.conn.WriteToUDP(packet.Data, packet.RemoteAddr)
-	s.Debugf("[udp.doWrite] written: %v", err)
+	if err != nil {
+		s.Errorf("[udp.doWrite] WriteToUDP error: %v", err)
+	}
 	return
 }
 
