@@ -14,13 +14,13 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 
 	var pi protocol.Interceptor = pi2.NewCoAPInterceptor()
 	optx1 := server.WithServerProtocolInterceptor(pi)
-	optx2 := server.WithServerPrefixInConfigFile("coaplib.server")
-	opt1 := server.WithCmdrServerOptions(optx1, optx2)
+	opt1 := server.WithCmdrServerOptions(optx1)
 	opt2 := server.WithCmdrPort(5688)
-	opt3 := server.WithCmdrCommandAction(serverRun)
+	opt3 := server.WithCmdrCommandAction(server.DefaultLooper)
 	opt4 := server.WithCmdrUDPMode(true)
+	opt5 := server.WithCmdrPrefixPrefix("coap")
 
-	server.AttachToCmdr(cmd, append(opts, opt1, opt2, opt3, opt4)...)
+	server.AttachToCmdr(cmd, append(opts, opt1, opt2, opt3, opt4, opt5)...)
 
 	serverCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("server"))
 	cmdr.NewBool().
@@ -32,10 +32,13 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 	// client
 
 	ox1 := client.WithCmdrPort(5688)
-	ox2 := client.WithCmdrCommandAction(clientRun)
-	ox3 := client.WithCmdrUDPMode(true)
+	optcx1 := client.WithClientProtocolInterceptor(pi)
+	ox2 := client.WithCmdrClientOptions(optcx1)
+	ox2 := client.WithCmdrUDPMode(true)
+	ox3 := client.WithCmdrCommandAction(client.DefaultLooper)
+	ox5 := client.WithCmdrPrefixPrefix("coap")
 
-	client.AttachToCmdr(cmd, ox1, ox2, ox3)
+	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox5)
 
 	clientCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("client"))
 	cmdr.NewBool().
@@ -44,15 +47,4 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 		Group("zzz1.Dry Run").
 		AttachTo(clientCmdrOpt)
 
-}
-
-func serverRun(cmd *cmdr.Command, args []string, opts ...server.Opt) (err error) {
-	//var pi server.protocolInterceptor = NewCoAPInterceptor()
-	//var opt server.Opt = server.WithServerProtocolInterceptor(pi)
-	//return server.DefaultLooper(cmd, args, append(opts, opt)...)
-	return server.DefaultLooper(cmd, args, opts...)
-}
-
-func clientRun(cmd *cmdr.Command, args []string) (err error) {
-	return client.DefaultLooper(cmd, args)
 }

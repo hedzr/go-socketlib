@@ -9,24 +9,46 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
-func newClientObj(conn net.Conn, logger log.Logger) (c *clientObj) {
-	c = &clientObj{
-		Logger:  logger,
-		conn:    conn,
-		quiting: false,
+type Opt func(obj *clientObj)
+
+func WithClientPrefixPrefix(prefixPrefix string) Opt {
+	return func(obj *clientObj) {
+		obj.prefixInConfigFile = strings.Join([]string{prefixPrefix, "client", "tls"}, ".")
 	}
+}
+
+func WithClientProtocolInterceptor(fn protocol.Interceptor) Opt {
+	return func(obj *clientObj) {
+		obj.protocolInterceptor = fn
+	}
+}
+
+func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) {
+	c = &clientObj{
+		Logger:             logger,
+		conn:               conn,
+		quiting:            false,
+		prefixInConfigFile: "tcp.client.tls",
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
 	return
 }
 
 type clientObj struct {
 	log.Logger
-	conn                net.Conn
-	protocolInterceptor protocol.Interceptor
+	conn                net.Conn // for tcp, unix
+	protocolInterceptor protocol.ClientInterceptor
 	quiting             bool
 	closeErr            error
+	prefixInConfigFile  string
 }
 
 func (c *clientObj) ProtocolInterceptor() protocol.Interceptor {

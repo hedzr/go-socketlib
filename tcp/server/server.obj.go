@@ -31,21 +31,25 @@ type Obj struct {
 
 type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) Connection
 
-func newServerObj(logger log.Logger) (s *Obj) {
+func newServerObj() (s *Obj) {
 	s = &Obj{
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		Logger:       logger,
+		Logger:       nil,
 		connections:  nil,
 		closeErr:     nil,
 		exitCh:       make(chan struct{}),
 		newConnFunc:  newConnObj,
-		netType:      "tcp",
+		netType:      defaultNetType,
 	}
 	//if s.Logger == nil {
 	//	s.Logger = sugar.New("debug", false, true)
 	//}
 	return
+}
+
+func (s *Obj) SetLogger(l log.Logger) {
+	s.Logger = l
 }
 
 func (s *Obj) ProtocolInterceptor() protocol.Interceptor {

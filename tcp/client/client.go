@@ -5,231 +5,66 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/go-socketlib/tcp/udp"
 	"github.com/hedzr/go-socketlib/tool"
 	"github.com/hedzr/log"
-	"github.com/hedzr/logex/build"
 	"math/rand"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-func DefaultLooper(cmd *cmdr.Command, args []string) (err error) {
-	var (
-		conn      net.Conn
-		done      = make(chan bool, 1)
-		tid       = 1
-		prefixCLI = cmd.GetDottedNamePath()
-		prefix    = "tcp.client.tls"
-		// prefixCLI := "tcp.client"
-	)
+//const prefixSuffix = "client.tls"
+const defaultNetType = "tcp"
 
-	loggerConfig := cmdr.NewLoggerConfig()
-	logger := build.New(loggerConfig)
+type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
 
-	config := base.NewConfig()
-	config.PrefixInCommandLine = cmd.GetDottedNamePath()
-	config.PrefixInConfigFile = prefix
-	config.LoggerConfig = loggerConfig
-
-	netType := cmdr.GetStringRP(config.PrefixInConfigFile, "network",
-		cmdr.GetStringRP(config.PrefixInCommandLine, "network", "tcp"))
-
-	var host, port string
-	host, port, err = net.SplitHostPort(config.Addr)
-	if port == "" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
+func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
+	config.BuildLogger()
+	if err = config.BuildAddr(); err != nil {
+		config.Logger.Fatalf("%v", err)
 	}
-	if port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInCommandLine, "port", 1024), 10)
-		if port == "0" {
-			logger.Fatalf("invalid port number: %q", port)
-		}
-	}
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	config.Addr = net.JoinHostPort(host, port)
 
-	if strings.HasPrefix(netType, "udp") {
-		// udp
-
-		ctx := context.Background()
-		defer func() {
-			logger.Debugf("end.")
-		}()
-
-		co := newClientObj(conn, logger)
-		defer co.Close()
-
-		uo := udp.NewUdpObj(co, nil, nil)
-		if err = uo.Connect(netType, config); err != nil {
-			logger.Errorf("failed to create udp socket handler: %v", err)
-		}
-		go func() {
-			if err = uo.Serve(ctx); err != nil {
-				logger.Errorf("failed to communicate via udp socket handler: %v", err)
-			}
-			logger.Debugf("Serve() end.")
-		}()
-
-		_, err = uo.WriteThrough([]byte("hello"))
-		//uo.WriteTo(nil, []byte("hello"))
-		logger.Debugf("'hello' wrote: %v", err)
-
-		//_, err = uo.WriteThrough([]byte("world"))
-		uo.WriteTo(nil, []byte("world"))
-		logger.Debugf("'world' wrote: %v", err)
-
-		b := make([]byte, 1)
-		os.Stdin.Read(b)
-		// _, _ = uo.WriteThrough([]byte("hello"))
-
-		//n, data := 0, make([]byte, 1024)
-		//n, err = conn.Read(data)
-		//fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
-
+	if strings.HasPrefix(config.Network, "udp") {
+		err = udpLoop(config, opts...)
 		return
 	}
 
-	// tcp, unix
-
-	ctc := tls2.NewCmdrTlsConfig(prefix, prefixCLI)
-	conn, err = ctc.Dial(netType, config.Addr)
-
-	if err != nil {
-		if _, t := err.(*net.OpError); t {
-			// fmt.Println("Some problem connecting.")
-			logger.Errorf("[%d] Some problem connecting: %v", tid, err)
-		} else {
-			// fmt.Println("Unknown error: " + err.Error())
-			logger.Errorf("[%d] failed: %v", tid, err)
-		}
-		// os.Exit(1)
-		return
-	}
-
-	co := newClientObj(conn, logger)
-	defer co.Close()
-	co.startLoopers()
-
-	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		logger.Debugf("signal[%v] caught and exiting this program", s)
-	})()
+	err = tcpUnixLoop(config, opts...)
 	return
 }
 
-func runAsCliTool(cmd *cmdr.Command, args []string) (err error) {
-	var (
-		conn      net.Conn
-		done      = make(chan bool, 1)
-		prefixCLI = cmd.GetDottedNamePath()
-		prefix    = "tcp.client.tls"
-		// prefixCLI := "tcp.client"
-	)
-
-	loggerConfig := log.NewLoggerConfig()
-	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
-	logger := build.New(loggerConfig)
-
-	config := base.NewConfig()
-	config.PrefixInCommandLine = cmd.GetDottedNamePath()
-	config.PrefixInConfigFile = prefix
-	config.LoggerConfig = loggerConfig
-
-	// dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixCLI, "host"), cmdr.GetIntRP(prefixCLI, "port"))
-	netType := cmdr.GetStringRP(config.PrefixInConfigFile, "network",
-		cmdr.GetStringRP(config.PrefixInCommandLine, "network", "tcp"))
-
-	var host, port string
-	host, port, err = net.SplitHostPort(config.Addr)
-	if port == "" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
+func runAsCliTool(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
+	config.BuildLogger()
+	if err = config.BuildAddr(); err != nil {
+		config.Logger.Fatalf("%v", err)
 	}
-	if port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInCommandLine, "port", 1024), 10)
-		if port == "0" {
-			logger.Fatalf("invalid port number: %q", port)
-		}
-	}
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	config.Addr = net.JoinHostPort(host, port)
 
-	if strings.HasPrefix(netType, "udp") {
-		// udp
-
-		ctx := context.Background()
-		defer func() {
-			logger.Debugf("end.")
-		}()
-
-		co := newClientObj(conn, logger)
-		defer co.Close()
-
-		uo := udp.NewUdpObj(co, nil, nil)
-		if err = uo.Connect(netType, config); err != nil {
-			logger.Fatalf("failed to create udp socket handler: %v", err)
-		}
-		go func() {
-			if err = uo.Serve(ctx); err != nil {
-				logger.Errorf("failed to communicate via udp socket handler: %v", err)
-			}
-			logger.Debugf("Serve() end.")
-		}()
-
-		_, err = uo.WriteThrough([]byte("hello"))
-		//uo.WriteTo(nil, []byte("hello"))
-		logger.Debugf("'hello' wrote: %v", err)
-
-		//_, err = uo.WriteThrough([]byte("world"))
-		uo.WriteTo(nil, []byte("world"))
-		logger.Debugf("'world' wrote: %v", err)
-
-		b := make([]byte, 1)
-		os.Stdin.Read(b)
-
-		//n, data := 0, make([]byte, 1024)
-		//n, err = uo.ReadThrough(data)
-		//fmt.Printf("read %s from <%s>\n", string(data[:n]), uo.RemoteAddr())
-
-		// co.Close()
-
+	if strings.HasPrefix(config.Network, "udp") {
+		err = udpLoop(config, opts...)
 		return
 	}
 
 	// tcp, unix
 
-	if cmdr.GetBool("interactive", cmdr.GetBoolRP(prefixCLI, "interactive")) {
-		err = runOneClient(logger, cmd, args)
+	done := make(chan bool, 1)
+	if cmdr.GetBool("interactive", cmdr.GetBoolRP(config.PrefixInCommandLine, "interactive")) {
+		err = runOneClient(config.Logger, done, cmd, args)
 
 	} else {
-		// dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixCLI, "host"), cmdr.GetIntRP(prefixCLI, "port"))
-		maxTimes := cmdr.GetIntRP(prefixCLI, "times")
-		parallel := cmdr.GetIntRP(prefixCLI, "parallel")
-		sleep := cmdr.GetDurationRP(prefixCLI, "sleep")
-		var wg sync.WaitGroup
-		wg.Add(parallel)
-		for x := 0; x < parallel; x++ {
-			go clientRunner(logger, prefixCLI, x, config.Addr, maxTimes, sleep, &wg)
-		}
-		wg.Wait()
+		err = tcpUnixBenchLoop(config, done, opts...)
 
-		done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 	}
 
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		logger.Debugf("signal[%v] caught and exiting this program", s)
+		config.Logger.Debugf("signal[%v] caught and exiting this program", s)
 	})()
 	return
 }
@@ -294,7 +129,7 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 	return
 }
 
-func runOneClient(logger log.Logger, cmd *cmdr.Command, args []string) (err error) {
+func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []string) (err error) {
 	prefixInCommandLine := cmd.GetDottedNamePath()
 	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
 	fmt.Printf("Connecting to %s...\n", dest)
@@ -315,11 +150,13 @@ func runOneClient(logger log.Logger, cmd *cmdr.Command, args []string) (err erro
 		} else {
 			logger.Errorf("Unknown error: %v", err)
 		}
+		done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 		os.Exit(1)
 	}
 
 	newClientObj(conn, logger).run()
 
+	done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 	return
 }
 

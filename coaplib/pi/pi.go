@@ -36,11 +36,11 @@ func (s *piCoAP) OnConnected(ctx context.Context, c base.Conn) {
 	c.Logger().Debugf("OnConnected")
 }
 
-func (s *piCoAP) OnClosing(c base.Conn) {
+func (s *piCoAP) OnClosing(c base.Conn, reason int) {
 	c.Logger().Debugf("OnClosing")
 }
 
-func (s *piCoAP) OnClosed(c base.Conn) {
+func (s *piCoAP) OnClosed(c base.Conn, reason int) {
 	c.Logger().Debugf("OnClosed")
 }
 

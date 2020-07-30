@@ -7,7 +7,7 @@ package tcp
 import (
 	"github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
-	"github.com/sirupsen/logrus"
+	log2 "log"
 )
 
 func WithServerOnProcessFunc(onProcess OnTcpServerProcessFunc) ServerOpt {
@@ -20,7 +20,7 @@ func WithServerBufferSize(size int) ServerOpt {
 	return func(server *Server) {
 		server.bufferSize = size
 		if size <= 0 {
-			logrus.Fatalf("wrong buffer size: %v", size)
+			log2.Panicf("wrong buffer size: %v", size)
 		}
 	}
 }

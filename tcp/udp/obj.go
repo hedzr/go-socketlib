@@ -51,16 +51,18 @@ func (s *Obj) IsConnected() bool {
 }
 
 func (s *Obj) Close() (err error) {
+	close(s.rdCh)
 	close(s.wrCh)
 	if s.conn != nil {
 		err = s.conn.Close()
-		s.conn = nil
+		// s.conn = nil
+		s.Debugf("s.conn closed: %v", err)
 	}
 	return
 }
 
 // Connect to a server endpoint via net.DialUDP()
-func (s *Obj) Connect(network string, config *base.Config) (err error) {
+func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Config) (err error) {
 	var sip, sport string
 	var port int
 	sip, sport, err = net.SplitHostPort(config.Addr)
@@ -89,10 +91,17 @@ func (s *Obj) Connect(network string, config *base.Config) (err error) {
 				Port: 0,
 				Zone: "",
 			}
+
+			//ctx, cancel := context.WithDeadline(baseCtx, time.Now().Add(10*time.Second))
+			//defer cancel()
+
 			s.conn, err = net.DialUDP(network, srcAddr, s.addr)
 			if err == nil {
 				s.connected = true
 				//err = s.conn.SetWriteBuffer(8192)
+				if s.ProtocolInterceptor() != nil {
+					s.ProtocolInterceptor().OnConnected(ctx, s.conn)
+				}
 			}
 		}
 	}
@@ -195,34 +204,44 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 		if processed, err = s.InterceptorHolder.ProtocolInterceptor().OnUDPWriting(ctx, s, packet); processed {
 			return
 		} else if err != nil {
-			s.Warnf("[udp.readPump] protocolInterceptor got error: %v", err)
+			s.Warnf("[udp.doWrite] protocolInterceptor got error: %v", err)
 			return
 		}
 	}
 
 	if packet.RemoteAddr == nil {
+		s.Debugf("[udp.doWrite] writing: %v", string(packet.Data))
 		deadline := time.Now().Add(s.WriteTimeout)
 		err = s.conn.SetWriteDeadline(deadline)
 		if err != nil {
 			return
 		}
 		_, err = s.conn.Write(packet.Data)
+		s.Debugf("[udp.doWrite] written: %v", err)
 		return
 	}
 
 	//s.conn.SetWriteBuffer(33)
+	s.Debugf("[udp.doWrite] writing: %v", string(packet.Data))
 	_, err = s.conn.WriteToUDP(packet.Data, packet.RemoteAddr)
+	s.Debugf("[udp.doWrite] written: %v", err)
 	return
 }
 
 func (s *Obj) writePump(ctx context.Context) {
-	var (
-		err error
-	)
+	var err error
+	defer func() {
+		if err == nil {
+			s.Debugf("    .. writePump end.")
+		} else {
+			s.Errorf("    .. writePump end with error: %v", err)
+		}
+	}()
 
 	for err == nil {
 		select {
 		case <-ctx.Done():
+			s.Debugf("    .. writePump will be end by ctx.Done.")
 			return
 		case data := <-s.wrCh:
 			if err = s.doWrite(ctx, data); err != nil {
@@ -239,6 +258,14 @@ func (s *Obj) readPump(ctx context.Context) {
 		processed bool
 		retry     = 0
 	)
+
+	defer func() {
+		if err == nil {
+			s.Debugf("    .. readPump end.")
+		} else {
+			s.Errorf("    .. readPump end with error: %v", err)
+		}
+	}()
 
 	for err == nil {
 		select {
@@ -290,6 +317,14 @@ func (s *Obj) listen(baseCtx context.Context) {
 	buffer := make([]byte, s.maxBufferSize)
 	retry, noDebug, n, remoteAddr, err := 0, s.debugMode, 0, new(net.UDPAddr), error(nil)
 
+	defer func() {
+		if err == nil {
+			s.Debugf("    .. [udp.listen.routine] %5d listener end")
+		} else {
+			s.Errorf("    .. [udp.listen.routine] %5d listener failed - %v", err)
+		}
+	}()
+
 	for err == nil {
 		n, remoteAddr, err = s.conn.ReadFromUDP(buffer)
 
@@ -332,10 +367,6 @@ func (s *Obj) listen(baseCtx context.Context) {
 			continue
 		}
 		s.Tracef("[udp.listen.routine] %5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
-	}
-
-	if err != nil {
-		s.Errorf("[udp.listen.routine] %5d listener failed - %v", err)
 	}
 }
 

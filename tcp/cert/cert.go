@@ -13,7 +13,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/hedzr/cmdr"
-	"github.com/sirupsen/logrus"
+	"log"
 	"math/big"
 	"net"
 	"os"
@@ -151,13 +151,13 @@ func newCaCerts(outputDir string, notBefore, notAfter time.Time, serialNumberLim
 	caPath = path.Join(outputDir, rootCertFileName)
 
 	if cmdr.FileExists(caKeyPath) && cmdr.FileExists(caPath) {
-		logrus.Infof("ignore recreating certs: %v, %v", caKeyPath, caPath)
+		// log.Infof("ignore recreating certs: %v, %v", caKeyPath, caPath)
 		return // exists, ignore creating
 	}
 
 	serialNumber, err = rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		logrus.Fatalf("failed to generate serial number: %s", err)
+		log.Fatalf("failed to generate serial number: %s", err)
 	}
 
 	rootKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -204,7 +204,7 @@ func newLeafCerts(outputDir string, notBefore, notAfter time.Time, serialNumberL
 	cPath = path.Join(outputDir, leafCertFileName)
 
 	if cmdr.FileExists(cKeyPath) && cmdr.FileExists(cPath) {
-		logrus.Infof("ignore recreating certs: %v, %v", cKeyPath, cPath)
+		// log.Infof("ignore recreating certs: %v, %v", cKeyPath, cPath)
 		return // exists, ignore creating
 	}
 
@@ -216,7 +216,7 @@ func newLeafCerts(outputDir string, notBefore, notAfter time.Time, serialNumberL
 
 	serialNumber, err = rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		logrus.Fatalf("failed to generate serial number: %s", err)
+		log.Fatalf("failed to generate serial number: %s", err)
 	}
 
 	pkixName.CommonName = leafCommonName
@@ -263,7 +263,7 @@ func newClientCerts(outputDir string, notBefore, notAfter time.Time, rootTemplat
 	cPath = path.Join(outputDir, clientCertFileName)
 
 	if cmdr.FileExists(cKeyPath) && cmdr.FileExists(cPath) {
-		logrus.Infof("ignore recreating certs: %v, %v", cKeyPath, cPath)
+		// log.Infof("ignore recreating certs: %v, %v", cKeyPath, cPath)
 		return // exists, ignore creating
 	}
 
@@ -317,13 +317,13 @@ func keyToFile(filename string, key *ecdsa.PrivateKey) {
 func certToFile(filename string, derBytes []byte) {
 	certOut, err := os.Create(filename)
 	if err != nil {
-		logrus.Fatalf("failed to open cert.pem for writing: %s", err)
+		log.Fatalf("failed to open cert.pem for writing: %s", err)
 	}
 	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		logrus.Fatalf("failed to write data to cert.pem: %s", err)
+		log.Fatalf("failed to write data to cert.pem: %s", err)
 	}
 	if err := certOut.Close(); err != nil {
-		logrus.Fatalf("error closing cert.pem: %s", err)
+		log.Fatalf("error closing cert.pem: %s", err)
 	}
 }
 

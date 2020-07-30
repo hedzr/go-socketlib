@@ -9,16 +9,19 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/hedzr/cmdr"
-	"github.com/sirupsen/logrus"
+	"github.com/hedzr/log"
 	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
 	"net"
 	"path"
 	"strings"
+	"time"
 )
 
 func NewCmdrTlsConfig(prefixInConfigFile, prefixInCommandline string) *CmdrTlsConfig {
-	s := &CmdrTlsConfig{}
+	s := &CmdrTlsConfig{
+		DialTimeout: 10 * time.Second,
+	}
 	if len(prefixInConfigFile) > 0 {
 		s.InitTlsConfigFromConfigFile(prefixInConfigFile)
 	}
@@ -40,6 +43,16 @@ type CmdrTlsConfig struct {
 	ClientAuth         bool   // Both
 	InsecureSkipVerify bool   // client-side only
 	MinTlsVersion      uint16 // Both
+	DialTimeout        time.Duration
+	logger             log.Logger
+}
+
+func (s *CmdrTlsConfig) WithLogger(logger log.Logger) *CmdrTlsConfig {
+	var t CmdrTlsConfig
+	ptr := cmdr.Clone(s, &t)
+	p := ptr.(*CmdrTlsConfig)
+	p.logger = logger
+	return p
 }
 
 func (s *CmdrTlsConfig) String() string {
@@ -266,7 +279,10 @@ func (s *CmdrTlsConfig) NewTlsListener(l net.Listener) (listener net.Listener, e
 		var config *tls.Config
 		config, err = s.newTlsConfig()
 		if err != nil {
-			logrus.Fatal(err)
+			if s.logger != nil {
+				s.logger.Fatalf("fatal error: %v", err)
+			}
+			return
 		}
 		listener = tls.NewListener(l, config)
 	}
@@ -307,12 +323,18 @@ func (s *CmdrTlsConfig) Dial(network, addr string) (conn net.Conn, err error) {
 
 		cfg.InsecureSkipVerify = s.InsecureSkipVerify
 
-		logrus.Printf("Connecting to %s over TLS [-k=%v]...\n", addr, cfg.InsecureSkipVerify)
+		if s.logger != nil {
+			s.logger.Printf("Connecting to %s over TLS [-k=%v]...\n", addr, cfg.InsecureSkipVerify)
+		}
+
+		dialer := &net.Dialer{Timeout: s.DialTimeout}
 		// Use the tls.Config here in http.Transport.TLSClientConfig
-		conn, err = tls.Dial(network, addr, cfg)
+		conn, err = tls.DialWithDialer(dialer, network, addr, cfg)
 	} else {
-		logrus.Printf("Connecting to %s...\n", addr)
-		conn, err = net.Dial(network, addr)
+		if s.logger != nil {
+			s.logger.Printf("Connecting to %s...\n", addr)
+		}
+		conn, err = net.DialTimeout(network, addr, s.DialTimeout)
 	}
 	return
 }

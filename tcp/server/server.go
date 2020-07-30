@@ -8,17 +8,13 @@ import (
 	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
-	"github.com/hedzr/logex/build"
-	"net"
 	"os"
-	"strconv"
 )
 
 func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
-	var logger log.Logger
+	// var logger log.Logger
 	// logger = build.New(config.LoggerConfig)
-	so = newServerObj(logger)
+	so = newServerObj()
 
 	for _, opt := range opts {
 		opt(so)
@@ -31,6 +27,9 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	so.netType = cmdr.GetStringRP(config.PrefixInConfigFile, "network",
 		cmdr.GetStringRP(config.PrefixInCommandLine, "network", so.netType))
 
+	config.BuildLogger()
+	so.SetLogger(config.Logger)
+
 	if cmdr.GetBoolRP(config.PrefixInCommandLine, "stop", false) {
 		if err = findAndShutdownTheRunningInstance(so.pfs); err != nil {
 			so.Errorf("No running instance found: %v", err)
@@ -42,26 +41,9 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	so.Tracef("    logging.level: %v", so.Logger.GetLevel())
 	// so.Infof("Starting server...")
 
-	var host, port string
-	host, port, err = net.SplitHostPort(config.Addr)
-	if port == "" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInConfigFile, "ports.default"), 10)
+	if err = config.BuildServerAddr(); err != nil {
+		config.Logger.Fatalf("%v", err)
 	}
-	if port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(config.PrefixInCommandLine, "port", 1024), 10)
-		if port == "0" {
-			so.Fatalf("invalid port number: %q", port)
-		}
-	}
-	//if host == "" {
-	//	host = "0.0.0.0"
-	//	// forceIPv6 make all IPv6 ip-addresses of this PC are listened, instead of its IPv4 addresses
-	//	const forceIPv6 = false
-	//	if forceIPv6 {
-	//		host = "[::]"
-	//	}
-	//}
-	config.Addr = net.JoinHostPort(host, port)
 
 	switch so.isUDP() {
 	case true:
@@ -94,18 +76,17 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	return
 }
 
-func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
-	loggerConfig := log.NewLoggerConfig()
-	_ = cmdr.GetSectionFrom("logger", &loggerConfig)
+//const prefixSuffix = "server.tls"
+const defaultNetType = "tcp"
 
-	config := base.NewConfig()
-	config.PrefixInCommandLine = cmd.GetDottedNamePath()
-	config.PrefixInConfigFile = "tcp.server"
-	config.LoggerConfig = loggerConfig
+type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
 
-	var logger log.Logger
-	logger = build.New(config.LoggerConfig)
-	opts = append(opts, WithServerLogger(logger))
+func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
+
+	//var logger log.Logger
+	//logger = build.New(config.LoggerConfig)
+	//opts = append(opts, WithServerLogger(logger))
 
 	var (
 		serve      ServeFunc
@@ -138,6 +119,7 @@ func DefaultLooper(cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 	}()
 
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+		so.Debugf("signal %v caught, requesting shutdown ...")
 		so.RequestShutdown()
 	})()
 

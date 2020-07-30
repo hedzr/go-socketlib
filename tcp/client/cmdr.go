@@ -27,13 +27,25 @@ func WithCmdrPort(port int) CmdrOpt {
 	}
 }
 
+func WithCmdrPrefixPrefix(prefixPrefix string) CmdrOpt {
+	return func(b *builder) {
+		b.prefixPrefix = prefixPrefix
+	}
+}
+
+func WithCmdrClientOptions(opts ...Opt) CmdrOpt {
+	return func(b *builder) {
+		b.opts = append(b.opts, opts...)
+	}
+}
+
 func WithCmdrInteractiveCommand(enabled bool) CmdrOpt {
 	return func(b *builder) {
 		b.interactiveCommand = enabled
 	}
 }
 
-func WithCmdrCommandAction(action cmdr.Handler) CmdrOpt {
+func WithCmdrCommandAction(action CommandAction) CmdrOpt {
 	return func(b *builder) {
 		b.action = action
 	}
@@ -42,8 +54,10 @@ func WithCmdrCommandAction(action cmdr.Handler) CmdrOpt {
 type builder struct {
 	port               int
 	interactiveCommand bool
-	action             cmdr.Handler
+	action             CommandAction
 	udpMode            bool
+	prefixPrefix       string
+	opts               []Opt
 }
 
 func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
@@ -72,9 +86,12 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	}
 
 	theClient := tcp.NewSubCommand("client", "c").
-		Description("TCP client operations").
-		Group("Test").
-		Action(b.action)
+		Description("TCP/UDP/Unix client operations").
+		// Group("Test").
+		Action(func(cmd *cmdr.Command, args []string) (err error) {
+			err = b.action(cmd, args, b.prefixPrefix, b.opts...)
+			return
+		})
 
 	b.attachTcpClientFlags(theClient)
 
@@ -139,7 +156,7 @@ func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
 // port.
 
 `).
-		Group("TLS").
+		// Group("TLS").
 		AttachTo(theClient)
 
 }

@@ -49,8 +49,20 @@ func (pf *pidFileStruct) String() string {
 }
 
 func (pf *pidFileStruct) Create() (err error) {
-	if err = exec.EnsureDirEnh(path.Dir(pf.Path)); err != nil {
-		return
+	dir := path.Dir(pf.Path)
+	if err = exec.EnsureDir(dir); err != nil {
+		fmt.Printf(`
+
+You're been prompt with a "sudo" requesting because this folder was been creating but need more privileges:
+
+- %v
+
+We must have created a PID file in it.
+
+`, dir)
+		if err = exec.EnsureDirEnh(dir); err != nil {
+			return
+		}
 	}
 
 	var f *os.File

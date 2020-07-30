@@ -65,6 +65,12 @@ func WithServerNetworkType(typeOfNetwork string) Opt {
 	}
 }
 
+//func WithServerPrefixPrefix(prefixPrefixInConfigFile string) Opt {
+//	return func(so *Obj) {
+//		so.prefix = strings.Join([]string{prefixPrefixInConfigFile, "server", "tls"}, ".")
+//	}
+//}
+
 type Opt func(so *Obj)
 type ServeFunc func(baseCtx context.Context) error
 

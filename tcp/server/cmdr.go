@@ -12,19 +12,77 @@ import (
 )
 
 type CmdrOpt func(*builder)
-type CommandAction func(cmd *cmdr.Command, args []string, opts ...Opt) (err error)
 
 type builder struct {
-	port    int
-	opts    []Opt
-	action  CommandAction
-	pi      protocol.Interceptor
-	udpMode bool
+	port         int
+	opts         []Opt
+	action       CommandAction
+	pi           protocol.Interceptor
+	udpMode      bool
+	prefixPrefix string
 }
 
 func WithCmdrUDPMode(mode bool) CmdrOpt {
 	return func(b *builder) {
 		b.udpMode = mode
+	}
+}
+
+// WithCmdrPrefixPrefix setup a prefix of prefix of tls configs
+// and server/client tcp/udp configs.
+//
+// For the `prefixPrefix` = "some-here", the section in yaml
+// config file looks like:
+//
+// ```yaml
+// app:
+//   some-here:
+//     server:
+//       addr:       # host[:port]
+//       # The default ports for the whole socket-lib.
+//       ports:
+//         default: 1883
+//         tls: 8883
+//         websocket: 443
+//         #sn: 1884   # mqttsn udp mode
+//
+//       tls:
+//         enabled: true
+//         client-auth: false
+//         cacert: root.pem
+//         cert: cert.pem
+//         key: cert.key
+//         locations:
+//           - ./ci/certs
+//           - $CFG_DIR/certs
+//
+//    cl ient:
+//       # To run the client with an interactive  mode, set interactive to true. The default is always false.
+//       # interactive: true
+//
+//       addr:       # host[:port]
+//       # The default ports for the whole socket-lib.
+//       ports:
+//         default: 1883
+//         tls: 8883
+//         websocket: 443
+//         #sn: 1884   # mqttsn udp mode
+//
+//       tls:
+//         enabled: true
+//         cacert: root.pem
+//         server-cert: cert.pem
+//         client-auth: false
+//         cert: client.pem
+//         key: client.key
+//         locations:
+//           - ./ci/certs
+//           - $CFG_DIR/certs
+// ```
+//
+func WithCmdrPrefixPrefix(prefixPrefix string) CmdrOpt {
+	return func(b *builder) {
+		b.prefixPrefix = prefixPrefix
 	}
 }
 
@@ -53,17 +111,11 @@ func WithCmdrLogger(logger log.Logger) CmdrOpt {
 }
 
 func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
-	// tcp := root.NewSubCommand().
-	// 	Titles("t", "tcp").
-	// 	Description("", "").
-	// 	Group("Test")
-	// // Action(func(cmd *cmdr.Command, args []string) (err error) {
-	// // 	return
-	// // })
 
 	b := &builder{
-		port:   DefaultPort,
-		action: DefaultLooper,
+		port:         DefaultPort,
+		action:       DefaultLooper,
+		prefixPrefix: "",
 	}
 
 	for _, opt := range opts {
@@ -72,15 +124,20 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 
 	network := "tcp"
 	if b.udpMode {
-		b.opts = append(b.opts, WithServerUDPMode(true))
 		network = "udp"
+		if b.prefixPrefix == "" {
+			b.prefixPrefix = "udp"
+		}
+		b.opts = append(b.opts, WithServerUDPMode(true))
+	} else if b.prefixPrefix == "" {
+		b.prefixPrefix = "tcp"
 	}
 
 	theServer := tcp.NewSubCommand("server", "s").
-		Description("TCP/UDP Server Operations").
-		Group("Test").
+		Description("TCP/UDP/Unix Server Operations").
+		// Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
-			return b.action(cmd, args, b.opts...)
+			return b.action(cmd, args, b.prefixPrefix, b.opts...)
 		})
 
 	cmdr.NewBool().
@@ -131,7 +188,7 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 // port.
 
 `).
-		Group("TLS").
+		// Group("TLS").
 		AttachTo(theServer)
 
 	cmdr.NewString("root.pem").
