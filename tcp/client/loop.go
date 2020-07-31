@@ -60,17 +60,24 @@ func tcpUnixLoop(config *base.Config, opts ...Opt) (err error) {
 
 func udpLoop(config *base.Config, opts ...Opt) (err error) {
 	ctx := context.Background()
+
+	done := make(chan struct{})
 	defer func() {
+		<-done
 		config.Logger.Debugf("end.")
 	}()
 
 	co := newClientObj(nil, config.Logger, opts...)
-	defer co.Close()
+	defer co.Join(ctx, done)
 
 	uo := udp.NewUdpObj(co, nil, nil)
 	if err = uo.Connect(ctx, config.Network, config); err != nil {
 		config.Logger.Errorf("failed to create udp socket handler: %v", err)
+		return
 	}
+	defer uo.Join(ctx, done)
+
+	// co.SetBaseConn(uo.AsBaseConn())
 	go func() {
 		if err = uo.Serve(ctx); err != nil {
 			config.Logger.Errorf("failed to communicate via udp socket handler: %v", err)

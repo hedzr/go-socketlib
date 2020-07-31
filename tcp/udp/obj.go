@@ -7,7 +7,11 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
 	"net"
+	"runtime"
 	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,6 +20,7 @@ type Obj struct {
 	protocol.InterceptorHolder
 	conn          *net.UDPConn
 	addr          *net.UDPAddr
+	baseConn      base.Conn
 	maxBufferSize int
 	rb            fast.RingBuffer
 	debugMode     bool
@@ -23,6 +28,8 @@ type Obj struct {
 	rdCh          chan *base.UdpPacket
 	wrCh          chan *base.UdpPacket
 	WriteTimeout  time.Duration
+	wg            sync.WaitGroup
+	closed        int32
 }
 
 func NewUdpObj(so protocol.InterceptorHolder, conn *net.UDPConn, addr *net.UDPAddr) *Obj {
@@ -50,19 +57,38 @@ func (s *Obj) IsConnected() bool {
 	return s.connected
 }
 
+func (s *Obj) AsBaseConn() base.Conn {
+	return s.baseConn
+}
+
+func (s *Obj) Join(ctx context.Context, done chan struct{}) {
+	if s.baseConn != nil {
+		go func() { time.Sleep(100 * time.Millisecond); _ = s.Close() }()
+		s.wg.Wait()
+		close(done)
+	}
+}
+
 func (s *Obj) Close() (err error) {
-	if s.ProtocolInterceptor() != nil {
-		s.ProtocolInterceptor().OnClosing(&connWrapper{s}, 0)
-	}
-	close(s.rdCh)
-	close(s.wrCh)
-	if s.conn != nil {
-		err = s.conn.Close()
-		// s.conn = nil
-		s.Debugf("s.conn closed: %v", err)
-	}
-	if s.ProtocolInterceptor() != nil {
-		s.ProtocolInterceptor().OnClosed(&connWrapper{s}, 0)
+	if atomic.CompareAndSwapInt32(&s.closed, 0, 1) {
+		if s.baseConn != nil {
+			if s.ProtocolInterceptor() != nil {
+				s.ProtocolInterceptor().OnClosing(s.baseConn, 0)
+			}
+			close(s.rdCh)
+			close(s.wrCh)
+			if s.conn != nil {
+				err = s.conn.Close()
+				s.conn = nil
+				if err != nil {
+					s.Debugf("s.conn closed: %v", err)
+				}
+			}
+			if s.ProtocolInterceptor() != nil {
+				s.ProtocolInterceptor().OnClosed(s.baseConn, 0)
+			}
+			s.baseConn = nil
+		}
 	}
 	return
 }
@@ -104,26 +130,15 @@ func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Conf
 			s.conn, err = net.DialUDP(network, srcAddr, s.addr)
 			if err == nil {
 				s.connected = true
+				s.baseConn = &udpConnWrapper{s.conn, s.Logger}
 				//err = s.conn.SetWriteBuffer(8192)
 				if s.ProtocolInterceptor() != nil {
-					s.ProtocolInterceptor().OnConnected(baseCtx, &connWrapper{s})
+					s.ProtocolInterceptor().OnConnected(baseCtx, s.baseConn)
 				}
 			}
 		}
 	}
 	return
-}
-
-type connWrapper struct {
-	*Obj
-}
-
-func (c *connWrapper) Logger() log.Logger {
-	return c.Obj.Logger
-}
-
-func (c *connWrapper) Close() {
-	_ = c.conn.Close()
 }
 
 // Create a server listener via net.ListenUDP()
@@ -171,15 +186,19 @@ func (s *Obj) Create(network string, config *base.Config) (err error) {
 }
 
 func (s *Obj) Serve(baseCtx context.Context) (err error) {
-	defer s.Close()
-	max := 1 // runtime.NumCPU()
-	for i := 0; i < max; i++ {
-		ctx := context.WithValue(baseCtx, "tid", i)
-		go s.listen(ctx)
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
+	for i, max := 0, runtime.NumCPU(); i < max; i++ {
+		ctx1 := context.WithValue(ctx, "tid", i)
+		go s.listen(ctx1)
 	}
 
-	go s.writePump(baseCtx)
-	s.readPump(baseCtx)
+	go s.readPump(ctx)
+	s.writePump(ctx)
+
+	// writePump will be end while wrCh closed (from Close())
+	// and defered cancel() will stop the readPump loop
 	return
 }
 
@@ -256,12 +275,15 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 
 func (s *Obj) writePump(ctx context.Context) {
 	var err error
+
+	s.wg.Add(1)
 	defer func() {
 		if err == nil {
 			s.Debugf("    .. writePump end.")
 		} else {
 			s.Errorf("    .. writePump end with error: %v", err)
 		}
+		s.wg.Done()
 	}()
 
 	for err == nil {
@@ -270,6 +292,9 @@ func (s *Obj) writePump(ctx context.Context) {
 			s.Debugf("    .. writePump will be end by ctx.Done.")
 			return
 		case data := <-s.wrCh:
+			if data == nil {
+				return
+			}
 			if err = s.doWrite(ctx, data); err != nil {
 				s.Errorf("internal write failed: %v", err)
 			}
@@ -285,12 +310,15 @@ func (s *Obj) readPump(ctx context.Context) {
 		retry     = 0
 	)
 
+	s.wg.Add(1)
+
 	defer func() {
 		if err == nil {
 			s.Debugf("    .. readPump end.")
 		} else {
 			s.Errorf("    .. readPump end with error: %v", err)
 		}
+		s.wg.Done()
 	}()
 
 	for err == nil {
@@ -343,25 +371,32 @@ func (s *Obj) listen(baseCtx context.Context) {
 	buffer := make([]byte, s.maxBufferSize)
 	retry, noDebug, n, remoteAddr, err := 0, s.debugMode, 0, new(net.UDPAddr), error(nil)
 
+	s.wg.Add(1)
+
 	defer func() {
 		if err == nil {
-			s.Debugf("    .. [udp.listen.routine] %5d listener end")
+			s.Debugf("    .. [udp.listen.routine] #%-5d listener end", baseCtx.Value("tid"))
 		} else {
-			s.Errorf("    .. [udp.listen.routine] %5d listener failed - %v", err)
+			s.Errorf("    .. [udp.listen.routine] #%-5d listener failed - %v", baseCtx.Value("tid"), err)
 		}
+		s.wg.Done()
 	}()
 
 	for err == nil {
 		n, remoteAddr, err = s.conn.ReadFromUDP(buffer)
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				// s.Tracef("    .. [udp.listen.routine] #%-5d client conn closed, remote is %q", baseCtx.Value("tid"), s.conn.RemoteAddr())
+				err = nil
+				return
+			}
+			return
+		}
 
 		select {
 		case <-baseCtx.Done():
 			return
 		default:
-		}
-
-		if err != nil {
-			continue
 		}
 
 		// you might copy out the contents of the packet here, to
@@ -373,7 +408,7 @@ func (s *Obj) listen(baseCtx context.Context) {
 		// fmt.Println("from", remoteAddr, "-", buffer[:n])
 		sd := make([]byte, n)
 		copy(sd, buffer[:n])
-		s.Debugf("[udp.listen.routine] %5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Debugf("[udp.listen.routine] #%-5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	retryPut:
 		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
 		if err != nil {
@@ -383,16 +418,16 @@ func (s *Obj) listen(baseCtx context.Context) {
 				retry++
 				if retry > 1000 {
 					if !noDebug && retry > 1000 {
-						s.Warnf("[udp.listen.routine] %5d (retry %v). quantity = %v. FULL! block till queue not full.", baseCtx.Value("tid"), retry, s.rb.Quantity())
+						s.Warnf("[udp.listen.routine] #%-5d (retry %v). quantity = %v. FULL! block till queue not full.", baseCtx.Value("tid"), retry, s.rb.Quantity())
 					}
 					break
 				}
 				goto retryPut
 			}
-			s.Errorf("[udp.listen.routine] %5d err: %+v.", baseCtx.Value("tid"), err)
+			s.Errorf("[udp.listen.routine] #-5d err: %+v.", baseCtx.Value("tid"), err)
 			continue
 		}
-		s.Tracef("[udp.listen.routine] %5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Tracef("[udp.listen.routine] #%-5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	}
 }
 

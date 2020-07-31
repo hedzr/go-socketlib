@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
 	"io"
@@ -20,7 +21,9 @@ func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) 
 		quiting:            false,
 		prefixInConfigFile: "tcp.client.tls",
 	}
-
+	if conn != nil {
+		c.baseConn = &connWrapper{conn, logger}
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -31,6 +34,7 @@ func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) 
 type clientObj struct {
 	log.Logger
 	conn                net.Conn // for tcp, unix
+	baseConn            base.Conn
 	protocolInterceptor protocol.Interceptor
 	quiting             bool
 	closeErr            error
@@ -45,32 +49,27 @@ func (c *clientObj) SetProtocolInterceptor(pi protocol.Interceptor) {
 	c.protocolInterceptor = pi
 }
 
-type connWrapper struct {
-	*clientObj
+func (c *clientObj) SetBaseConn(bc base.Conn) {
+	c.baseConn = bc
 }
 
-func (c *connWrapper) Logger() log.Logger {
-	return c.clientObj.Logger
-}
-
-func (c *connWrapper) Close() {
-	_ = c.clientObj.conn.Close()
-}
-
-func (c *connWrapper) RawWrite(ctx context.Context, message []byte) (n int, err error) {
-	n, err = c.clientObj.conn.Write(message)
-	return
+func (c *clientObj) Join(ctx context.Context, done chan struct{}) {
+	if c.baseConn != nil {
+		c.Close()
+		close(done)
+	}
 }
 
 func (c *clientObj) Close() {
-	if c.conn != nil {
+	if c.baseConn != nil {
 		if c.protocolInterceptor != nil {
-			c.protocolInterceptor.OnClosing(&connWrapper{clientObj: c}, 0)
+			c.protocolInterceptor.OnClosing(c.baseConn, 0)
 		}
-		c.closeErr = c.conn.Close()
+		c.baseConn.Close()
 		c.conn = nil
+		c.baseConn = nil
 		if c.protocolInterceptor != nil {
-			c.protocolInterceptor.OnClosed(&connWrapper{clientObj: c}, 0)
+			c.protocolInterceptor.OnClosed(c.baseConn, 0)
 		}
 	}
 }
