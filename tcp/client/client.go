@@ -5,6 +5,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
@@ -22,9 +23,10 @@ import (
 //const prefixSuffix = "client.tls"
 const defaultNetType = "tcp"
 
-type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
+type CommandAction func(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error)
+type MainLoop func(ctx context.Context, conn base.Conn, done chan bool, config *base.Config)
 
-func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+func DefaultLooper(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
 	config.BuildLogger()
 	if err = config.BuildAddr(); err != nil {
@@ -32,15 +34,15 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 	}
 
 	if strings.HasPrefix(config.Network, "udp") {
-		err = udpLoop(config, opts...)
+		err = udpLoop(config, mainLoop, opts...)
 		return
 	}
 
-	err = tcpUnixLoop(config, opts...)
+	err = tcpUnixLoop(config, mainLoop, opts...)
 	return
 }
 
-func runAsCliTool(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
 	config.BuildLogger()
 	if err = config.BuildAddr(); err != nil {
@@ -48,7 +50,7 @@ func runAsCliTool(cmd *cmdr.Command, args []string, prefixPrefix string, opts ..
 	}
 
 	if strings.HasPrefix(config.Network, "udp") {
-		err = udpLoop(config, opts...)
+		err = udpLoop(config, mainLoop, opts...)
 		return
 	}
 

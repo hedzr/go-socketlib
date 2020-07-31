@@ -5,7 +5,10 @@
 package client
 
 import (
+	"context"
 	"github.com/hedzr/cmdr"
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"os"
 	"time"
 )
 
@@ -51,6 +54,12 @@ func WithCmdrCommandAction(action CommandAction) CmdrOpt {
 	}
 }
 
+func WithCmdrMainLoop(mainLoop MainLoop) CmdrOpt {
+	return func(b *builder) {
+		b.mainLoop = mainLoop
+	}
+}
+
 func WithCmdrNil() CmdrOpt {
 	return nil
 }
@@ -59,6 +68,7 @@ type builder struct {
 	port               int
 	interactiveCommand bool
 	action             CommandAction
+	mainLoop           MainLoop
 	udpMode            bool
 	prefixPrefix       string
 	opts               []Opt
@@ -76,6 +86,7 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	b := &builder{
 		port:   DefaultPort,
 		action: runAsCliTool,
+		// mainLoop: defaultMainLoop,
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -91,11 +102,19 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		b.attachTcpClientFlags(tc2)
 	}
 
+	if b.mainLoop == nil {
+		if b.udpMode {
+			b.mainLoop = defaultUdpMainLoop
+		} else {
+			b.mainLoop = defaultMainLoop
+		}
+	}
+
 	theClient := tcp.NewSubCommand("client", "c").
 		Description("TCP/UDP/Unix client operations").
 		// Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
-			err = b.action(cmd, args, b.prefixPrefix, b.opts...)
+			err = b.action(cmd, args, b.mainLoop, b.prefixPrefix, b.opts...)
 			return
 		})
 
@@ -104,6 +123,34 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	if !b.udpMode {
 		b.attachTcpTLSClientFlags(theClient)
 	}
+}
+
+func defaultMainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config) {
+	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+		config.Logger.Debugf("signal[%v] caught and exiting this program", s)
+	})()
+}
+
+func defaultUdpMainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config) {
+	var err error
+
+	_, err = conn.RawWrite(ctx, []byte("hello"))
+	//uo.WriteTo(nil, []byte("hello"))
+	config.Logger.Debugf("'hello' wrote: %v", err)
+
+	if wr, ok := conn.(base.CachedUDPWriter); ok {
+		//_, err = uo.WriteThrough([]byte("world"))
+		wr.WriteTo(nil, []byte("world"))
+		config.Logger.Debugf("'world' wrote: %v", err)
+	}
+
+	time.Sleep(time.Second)
+	config.PressEnterToExit()
+	// _, _ = uo.WriteThrough([]byte("hello"))
+
+	//n, data := 0, make([]byte, 1024)
+	//n, err = conn.Read(data)
+	//fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
 }
 
 func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {

@@ -2,11 +2,13 @@ package udp
 
 import (
 	"context"
+	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/log"
 	"net"
 )
 
 type udpConnWrapper struct {
+	base.CachedUDPWriter
 	conn   *net.UDPConn
 	logger log.Logger
 }

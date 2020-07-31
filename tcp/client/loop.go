@@ -7,9 +7,7 @@ import (
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tcp/udp"
 	"net"
-	"os"
 	"sync"
-	"time"
 )
 
 func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err error) {
@@ -28,7 +26,7 @@ func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err err
 	return
 }
 
-func tcpUnixLoop(config *base.Config, opts ...Opt) (err error) {
+func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 	var conn net.Conn
 	var done = make(chan bool, 1)
 	var tid = 1
@@ -52,16 +50,17 @@ func tcpUnixLoop(config *base.Config, opts ...Opt) (err error) {
 	defer co.Close()
 	co.startLoopers()
 
-	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		config.Logger.Debugf("signal[%v] caught and exiting this program", s)
-	})()
+	mainLoop(context.Background(), co.AsBaseConn(), done, config)
+	//cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+	//	config.Logger.Debugf("signal[%v] caught and exiting this program", s)
+	//})()
 	return
 }
 
-func udpLoop(config *base.Config, opts ...Opt) (err error) {
+func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 	ctx := context.Background()
 
-	done := make(chan struct{})
+	done := make(chan bool)
 	defer func() {
 		<-done
 		config.Logger.Debugf("end.")
@@ -71,9 +70,8 @@ func udpLoop(config *base.Config, opts ...Opt) (err error) {
 	defer co.Join(ctx, done)
 
 	ln := cmdr.GetIntRP(config.PrefixInConfigFile, "listeners", 0)
-
 	uo := udp.New(co, udp.WithListenerNumber(ln))
-	if err = uo.Connect(ctx, config.Network, config); err != nil {
+	if err = uo.Connect(ctx, config); err != nil {
 		config.Logger.Errorf("failed to create udp socket handler: %v", err)
 		return
 	}
@@ -87,21 +85,7 @@ func udpLoop(config *base.Config, opts ...Opt) (err error) {
 		config.Logger.Debugf("Serve() end.")
 	}()
 
-	_, err = uo.RawWrite(ctx, []byte("hello"))
-	//uo.WriteTo(nil, []byte("hello"))
-	config.Logger.Debugf("'hello' wrote: %v", err)
-
-	//_, err = uo.WriteThrough([]byte("world"))
-	uo.WriteTo(nil, []byte("world"))
-	config.Logger.Debugf("'world' wrote: %v", err)
-
-	time.Sleep(time.Second)
-	config.PressEnterToExit()
-	// _, _ = uo.WriteThrough([]byte("hello"))
-
-	//n, data := 0, make([]byte, 1024)
-	//n, err = conn.Read(data)
-	//fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
+	mainLoop(ctx, uo.AsBaseConn(), done, config)
 
 	return
 }

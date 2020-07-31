@@ -1,11 +1,14 @@
-package cmdr
+package cmd
 
 import (
+	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/coaplib/pi"
+	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/go-socketlib/tcp/server"
+	"time"
 )
 
 func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
@@ -37,9 +40,10 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 	ox2 := client.WithCmdrPort(0)
 	ox3 := client.WithCmdrUDPMode(true)
 	ox4 := client.WithCmdrCommandAction(client.DefaultLooper)
-	ox5 := client.WithCmdrPrefixPrefix("coap")
+	ox5 := client.WithCmdrMainLoop(coapMainLoop)
+	ox6 := client.WithCmdrPrefixPrefix("coap")
 
-	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox4, ox5)
+	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox4, ox5, ox6)
 
 	clientCmdrOpt := cmdr.NewCmdFrom(cmd.ToCommand().FindSubCommand("client"))
 	cmdr.NewBool().
@@ -49,4 +53,9 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 		AttachTo(clientCmdrOpt)
 	clientCmdrOpt.ToCommand().FindFlag("host").DefaultValue = "coap://coap.me"
 
+}
+
+func coapMainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config) {
+	time.Sleep(time.Second)
+	config.PressEnterToExit()
 }

@@ -13,14 +13,15 @@ import (
 
 type Connection interface {
 	base.Conn
+	base.CachedTCPWriter
 
 	// HandleConnection is used by serverObj
 	HandleConnection(ctx context.Context)
 
-	// WriteString send the string to the writing queue
-	WriteString(message string)
-	// Write send the buffer to the writing queue
-	Write(message []byte)
+	//// WriteString send the string to the writing queue
+	//WriteString(message string)
+	//// Write send the buffer to the writing queue
+	//Write(message []byte)
 }
 
 type connectionObj struct {
@@ -34,7 +35,7 @@ type connectionObj struct {
 }
 
 func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connection) {
-	s = &connectionObj{
+	co := &connectionObj{
 		serverObj: serverObj,
 		uid:       atomic.AddUint64(&serverObj.uidConn, 1),
 		conn:      conn,
@@ -42,6 +43,7 @@ func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connectio
 		//exitCh:    make(chan struct{}),
 		//logger:    serverObj.logger,
 	}
+	s = co
 	return
 }
 

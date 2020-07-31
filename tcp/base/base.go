@@ -25,6 +25,17 @@ type Conn interface {
 	RawWrite(ctx context.Context, message []byte) (n int, err error)
 }
 
+type CachedTCPWriter interface {
+	// WriteString send the string to the writing queue
+	WriteString(message string)
+	// Write send the buffer to the writing queue
+	Write(message []byte)
+}
+
+type CachedUDPWriter interface {
+	WriteTo(remoteAddr *net.UDPAddr, data []byte)
+}
+
 type UdpPacket struct {
 	RemoteAddr *net.UDPAddr
 	Data       []byte

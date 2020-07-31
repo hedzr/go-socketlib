@@ -22,7 +22,7 @@ func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) 
 		prefixInConfigFile: "tcp.client.tls",
 	}
 	if conn != nil {
-		c.baseConn = &connWrapper{conn, logger}
+		c.baseConn = &connWrapper{nil, conn, logger}
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -53,7 +53,11 @@ func (c *clientObj) SetBaseConn(bc base.Conn) {
 	c.baseConn = bc
 }
 
-func (c *clientObj) Join(ctx context.Context, done chan struct{}) {
+func (c *clientObj) AsBaseConn() base.Conn {
+	return c.baseConn
+}
+
+func (c *clientObj) Join(ctx context.Context, done chan bool) {
 	if c.baseConn != nil {
 		c.Close()
 		close(done)

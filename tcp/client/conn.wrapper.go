@@ -2,11 +2,13 @@ package client
 
 import (
 	"context"
+	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/log"
 	"net"
 )
 
 type connWrapper struct {
+	base.CachedTCPWriter
 	conn   net.Conn
 	logger log.Logger
 }

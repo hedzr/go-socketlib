@@ -83,7 +83,7 @@ func (s *Obj) AsBaseConn() base.Conn {
 	return s.baseConn
 }
 
-func (s *Obj) Join(ctx context.Context, done chan struct{}) {
+func (s *Obj) Join(ctx context.Context, done chan bool) {
 	if s.baseConn != nil {
 		go func() { time.Sleep(100 * time.Millisecond); _ = s.Close() }()
 		s.wg.Wait()
@@ -116,7 +116,7 @@ func (s *Obj) Close() (err error) {
 }
 
 // Connect to a server endpoint via net.DialUDP()
-func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Config) (err error) {
+func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) {
 	var sip, sport string
 	var port int
 	sip, sport, err = net.SplitHostPort(config.Addr)
@@ -124,13 +124,21 @@ func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Conf
 
 		var ip net.IP
 		if sip == "" {
-			if network == "udp6" {
+			if config.Network == "udp6" {
 				ip = net.IPv6zero
 			} else {
 				ip = net.IPv4zero
 			}
 		} else {
 			ip = net.ParseIP(sip)
+			if ip == nil {
+				var ipAddr *net.IPAddr
+				ipAddr, err = net.ResolveIPAddr("ip", sip)
+				if err != nil {
+					return
+				}
+				ip = ipAddr.IP
+			}
 		}
 
 		port, err = strconv.Atoi(sport)
@@ -149,10 +157,11 @@ func (s *Obj) Connect(baseCtx context.Context, network string, config *base.Conf
 			//ctx, cancel := context.WithDeadline(baseCtx, time.Now().Add(10*time.Second))
 			//defer cancel()
 
-			s.conn, err = net.DialUDP(network, srcAddr, s.addr)
+			s.conn, err = net.DialUDP(config.Network, srcAddr, s.addr)
 			if err == nil {
 				s.connected = true
-				s.baseConn = &udpConnWrapper{s.conn, s.Logger}
+				s.baseConn = &udpConnWrapper{s, s.conn, s.Logger}
+				s.Debugf("Connecting OK: %v / %v", config.Addr, config.Uri)
 				//err = s.conn.SetWriteBuffer(8192)
 				if s.ProtocolInterceptor() != nil {
 					s.ProtocolInterceptor().OnConnected(baseCtx, s.baseConn)
