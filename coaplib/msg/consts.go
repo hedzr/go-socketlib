@@ -1,8 +1,15 @@
+//go:generate stringer -type Type,Code,CodeCategory,OptionNumber,ContentFormat -linecomment -output consts_string.go
+
 package msg
 
+type Type uint8
+type TKL uint8
+type OptionNumber uint32
+type ContentFormat uint8
+
 const (
-	CON Type = 0
-	NON Type = 1
+	CON Type = 0 // Confirmable
+	NON Type = 1 //
 	ACK Type = 2
 	RST Type = 3
 
@@ -63,10 +70,10 @@ const (
 	OptionNumberR136          OptionNumber = 136
 	OptionNumberR140          OptionNumber = 140
 
-	ContentFormatTextPlain   int = 0
-	ContentFormatLinkFormat  int = 40
-	ContentFormatXml         int = 41
-	ContentFormatOctetStream int = 42
-	ContentFormatExi         int = 47
-	ContentFormatJson        int = 50
+	ContentFormatTextPlain   ContentFormat = 0
+	ContentFormatLinkFormat  ContentFormat = 40
+	ContentFormatXml         ContentFormat = 41
+	ContentFormatOctetStream ContentFormat = 42
+	ContentFormatExi         ContentFormat = 47
+	ContentFormatJson        ContentFormat = 50
 )

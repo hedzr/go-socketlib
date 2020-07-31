@@ -3,16 +3,13 @@ package msg
 import (
 	"fmt"
 	"gopkg.in/hedzr/errors.v2"
+	"strings"
 )
-
-type Type uint8
-type TKL uint8
-type OptionNumber uint32
 
 type Message struct {
 	Type      Type
 	TKL       TKL
-	Code      uint8
+	Code      Code
 	MessageID uint16
 	Token     uint64
 	Options   []Opt
@@ -26,19 +23,32 @@ func (s *Message) Encode() (output []byte, err error) {
 func (s *Message) Decode(data []byte) (err error) {
 	var i, newI int
 	var b byte = data[i]
+
 	ver := b >> 6
 	if ver != 1 {
 		err = errors.New("invalid VER: %v", ver)
 		return
 	}
+
 	s.Type = Type(b>>4) & 3
+
 	s.TKL = TKL(b & 0x0f)
+	if s.TKL >= 9 {
+		err = errors.New("invalid TKL: %v", s.TKL)
+		return
+	}
 
 	i++
-	s.Code = data[i]
+	s.Code = Code(data[i])
+	if strings.HasPrefix(s.Code.String(), "Code(") {
+		err = errors.New("invalid Code: %v(%s)", int(s.Code), s.Code)
+		return
+	}
+
 	s.MessageID = uint16(data[i+1])*256 + uint16(data[i+2]) // Big-endian
+
 	for i = 4; i < 4+int(s.TKL); i++ {
-		s.Token = s.Token<<8 + uint64(data[i])
+		s.Token = s.Token<<8 + uint64(data[i]) // Big-endian
 	}
 
 	// Options if any

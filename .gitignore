@@ -42,11 +42,10 @@ cover.html
 *~
 ~*
 
-### two executable files
+###
 
-would_like
-would_like_n/would_like_n
-test/test
+*_string.go
+
 
 ### Go template
 # Binaries for programs and plugins

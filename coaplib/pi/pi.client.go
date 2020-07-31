@@ -2,6 +2,7 @@ package pi
 
 import (
 	"context"
+	"github.com/hedzr/go-socketlib/coaplib/msg"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
@@ -15,7 +16,7 @@ type pic struct {
 }
 
 func (p *pic) OnConnected(ctx context.Context, c base.Conn) {
-	c.Logger().Debugf("OnConnected")
+	c.Logger().Debugf("OnConnected: %v", c)
 	return
 
 }
@@ -39,7 +40,17 @@ func (p *pic) OnError(ctx context.Context, c base.Conn, err error) {
 }
 
 func (p *pic) OnReading(ctx context.Context, c base.Conn, data []byte) (processed bool, err error) {
-	c.Logger().Debugf("OnReading")
+	//c.Logger().Debugf("OnReading")
+
+	m := new(msg.Message)
+	if err = m.Decode(data); err != nil {
+		c.Logger().Debugf("OnReading, decode CoAP message failed: %v", err)
+		return
+	}
+
+	// explain m
+	//...
+
 	return
 
 }

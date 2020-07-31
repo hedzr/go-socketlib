@@ -6,15 +6,15 @@ type Code uint8
 type CodeCategory uint8
 type CodeDetails uint8
 
-func (c Code) Category() CodeCategory {
-	return CodeCategory(c >> 5)
+func (i Code) Category() CodeCategory {
+	return CodeCategory(i >> 5)
 }
 
-func (c Code) Details() CodeDetails {
-	return CodeDetails(c & 0x1f)
+func (i Code) Details() CodeDetails {
+	return CodeDetails(i & 0x1f)
 }
 
-func (c Code) String() string {
-	a, b := c>>5, c&0x1f
+func (i Code) StringEx() string {
+	a, b := i>>5, i&0x1f
 	return fmt.Sprintf("%d.%02d", a, b)
 }
