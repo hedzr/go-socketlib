@@ -1,4 +1,4 @@
-package coaplib
+package cmdr
 
 import (
 	"github.com/hedzr/cmdr"
