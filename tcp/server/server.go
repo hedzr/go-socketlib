@@ -20,10 +20,8 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 		opt(so)
 	}
 
-	so.pfs = makePidFSFromDir(config.PidDir)
-
-	config.PrefixInConfigFile = so.prefix
-	so.pfs = makePidFS(config.PrefixInCommandLine)
+	config.UpdatePrefixInConfigFile(so.prefix)
+	so.pfs = config.BuildPidFile()
 	so.netType = cmdr.GetStringRP(config.PrefixInConfigFile, "network",
 		cmdr.GetStringRP(config.PrefixInCommandLine, "network", so.netType))
 
@@ -31,7 +29,7 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	so.SetLogger(config.Logger)
 
 	if cmdr.GetBoolRP(config.PrefixInCommandLine, "stop", false) {
-		if err = findAndShutdownTheRunningInstance(so.pfs); err != nil {
+		if err = base.FindAndShutdownTheRunningInstance(so.pfs); err != nil {
 			so.Errorf("No running instance found: %v", err)
 		}
 		return
@@ -82,17 +80,12 @@ const defaultNetType = "tcp"
 type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
 
 func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
-	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
-
-	//var logger log.Logger
-	//logger = build.New(config.LoggerConfig)
-	//opts = append(opts, WithServerLogger(logger))
-
 	var (
 		serve      ServeFunc
 		so         *Obj
 		tlsEnabled bool
 	)
+	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
 	serve, so, tlsEnabled, err = newServer(config, opts...)
 	if err != nil {
 		if so != nil {

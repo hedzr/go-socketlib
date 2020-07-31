@@ -1,10 +1,9 @@
-package server
+package base
 
 import (
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/cmdr-addons/pkg/plugins/dex/sig"
-	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/log/exec"
 	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
@@ -14,8 +13,16 @@ import (
 	"strconv"
 )
 
-func makePidFS(prefixInCommandLine string) *pidFileStruct {
-	return newPidFile(cmdr.GetStringRP(prefixInCommandLine, "pid-path", base.DefaultPidPathTemplate))
+func makePidFS(prefixInCommandLine, prefixInConfigFile, defaultDir string) *pidFileStruct {
+	if defaultDir == "" {
+		defaultDir = DefaultPidPathTemplate
+	}
+	var dir string
+	dir = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
+	if dir == "" {
+		dir = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
+	}
+	return newPidFile(dir)
 }
 
 func makePidFSFromDir(dir string) *pidFileStruct {
@@ -23,33 +30,35 @@ func makePidFSFromDir(dir string) *pidFileStruct {
 	return newPidFile(pp)
 }
 
-func findAndShutdownTheRunningInstance(pfs *pidFileStruct) (err error) {
-	var present bool
-	var process *os.Process
-	if present, process, err = findDaemonProcess(pfs); err == nil && present {
-		err = sig.SendQUIT(process)
-	}
-	return
+type PidFile interface {
+	Path() string
+	Create() (err error)
+	Destroy()
+	IsExists() bool
 }
 
 type pidFileStruct struct {
-	Path string
+	path string
 }
 
 // var pidfile = &pidFileStruct{}
 
 func newPidFile(filepath string) *pidFileStruct {
 	return &pidFileStruct{
-		Path: os.ExpandEnv(filepath),
+		path: os.ExpandEnv(filepath),
 	}
 }
 
 func (pf *pidFileStruct) String() string {
-	return pf.Path
+	return pf.path
+}
+
+func (pf *pidFileStruct) Path() string {
+	return pf.path
 }
 
 func (pf *pidFileStruct) Create() (err error) {
-	dir := path.Dir(pf.Path)
+	dir := path.Dir(pf.path)
 	if err = exec.EnsureDir(dir); err != nil {
 		fmt.Printf(`
 
@@ -66,9 +75,9 @@ We must have created a PID file in it.
 	}
 
 	var f *os.File
-	f, err = os.OpenFile(pf.Path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0770)
+	f, err = os.OpenFile(pf.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0770)
 	if err != nil {
-		err = errors.New("Failed to create pid file %q", pf.Path).Attach(err)
+		err = errors.New("Failed to create pid file %q", pf.path).Attach(err)
 	}
 
 	defer func() { err = f.Close() }()
@@ -81,12 +90,20 @@ func (pf *pidFileStruct) Destroy() {
 	// if cmdr.GetBoolR("server.start.in-daemon") {
 	//	//
 	// }
-	if cmdr.FileExists(pf.Path) {
-		err := os.RemoveAll(pf.Path)
+	if cmdr.FileExists(pf.path) {
+		err := os.RemoveAll(pf.path)
 		if err != nil {
 			panic(errors.New("Failed to destroy pid file %q", pf.Path).Attach(err))
 		}
 	}
+}
+
+func (pf *pidFileStruct) IsExists() bool {
+	// check if daemon already running.
+	if _, err := os.Stat(pf.path); err == nil {
+		return true
+	}
+	return false
 }
 
 func pidExistsDeep(pid int) (bool, error) {
@@ -105,20 +122,15 @@ func pidExistsDeep(pid int) (bool, error) {
 	return err == nil, err
 }
 
-// isPidFileExists checks if the pid file exists or not
-func isPidFileExists(pfs *pidFileStruct) bool {
-	// check if daemon already running.
-	if _, err := os.Stat(pfs.Path); err == nil {
-		return true
-
-	}
-	return false
+// IsPidFileExists checks if the pid file exists or not
+func IsPidFileExists(pfs PidFile) bool {
+	return pfs.IsExists()
 }
 
-// findDaemonProcess locates the daemon process if running
-func findDaemonProcess(pfs *pidFileStruct) (present bool, process *os.Process, err error) {
-	if isPidFileExists(pfs) {
-		s, _ := ioutil.ReadFile(pfs.Path)
+// FindDaemonProcess locates the daemon process if running
+func FindDaemonProcess(pfs PidFile) (present bool, process *os.Process, err error) {
+	if IsPidFileExists(pfs) {
+		s, _ := ioutil.ReadFile(pfs.Path())
 		var pid int64
 		pid, err = strconv.ParseInt(string(s), 0, 64)
 		if err != nil {
@@ -132,6 +144,16 @@ func findDaemonProcess(pfs *pidFileStruct) (present bool, process *os.Process, e
 		}
 	} else {
 		err = errors.New("cat %v ... app stopped", pfs.Path)
+	}
+	return
+}
+
+// FindAndShutdownTheRunningInstance locates the daemon process if running
+func FindAndShutdownTheRunningInstance(pfs PidFile) (err error) {
+	var present bool
+	var process *os.Process
+	if present, process, err = FindDaemonProcess(pfs); err == nil && present {
+		err = sig.SendQUIT(process)
 	}
 	return
 }

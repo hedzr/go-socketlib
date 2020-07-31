@@ -51,6 +51,10 @@ func WithCmdrCommandAction(action CommandAction) CmdrOpt {
 	}
 }
 
+func WithCmdrNil() CmdrOpt {
+	return nil
+}
+
 type builder struct {
 	port               int
 	interactiveCommand bool
@@ -74,7 +78,9 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		action: runAsCliTool,
 	}
 	for _, opt := range opts {
-		opt(b)
+		if opt != nil {
+			opt(b)
+		}
 	}
 
 	if b.interactiveCommand {

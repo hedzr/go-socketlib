@@ -45,7 +45,7 @@ func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string,
 		s = "server"
 	}
 
-	prefix := strings.Join([]string{prefixPrefix, s, "tls"}, ".")
+	prefix := strings.Join([]string{prefixPrefix, s}, ".")
 	if prefixCLI == "" {
 		prefixCLI = strings.Join([]string{prefixPrefix, s}, ".")
 	}
@@ -61,8 +61,18 @@ func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string,
 	}
 }
 
+func (c *Config) UpdatePrefixInConfigFile(s string) {
+	if len(s) > 0 {
+		c.PrefixInConfigFile = s
+	}
+}
+
 func (c *Config) BuildLogger() {
 	c.Logger = build.New(c.LoggerConfig)
+}
+
+func (c *Config) BuildPidFile() *pidFileStruct {
+	return makePidFS(c.PrefixInCommandLine, c.PrefixInConfigFile, c.PidDir)
 }
 
 func (c *Config) BuildServerAddr() (err error) {
@@ -71,7 +81,7 @@ func (c *Config) BuildServerAddr() (err error) {
 		c.Addr = cmdr.GetStringRP(c.PrefixInCommandLine, "addr", ":"+cmdr.GetStringRP(c.PrefixInCommandLine, "port", "1024"))
 	}
 	host, port, err = net.SplitHostPort(c.Addr)
-	if port == "" {
+	if port == "" || port == "0" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
 	}
 	if port == "0" {
@@ -99,7 +109,7 @@ func (c *Config) BuildAddr() (err error) {
 		c.Addr = cmdr.GetStringRP(c.PrefixInCommandLine, "addr", ":"+cmdr.GetStringRP(c.PrefixInCommandLine, "port", "1024"))
 	}
 	host, port, err = net.SplitHostPort(c.Addr)
-	if port == "" {
+	if port == "" || port == "0" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
 	}
 	if port == "0" {

@@ -110,6 +110,10 @@ func WithCmdrLogger(logger log.Logger) CmdrOpt {
 	}
 }
 
+func WithCmdrNil() CmdrOpt {
+	return nil
+}
+
 func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 
 	b := &builder{
@@ -119,7 +123,9 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	}
 
 	for _, opt := range opts {
-		opt(b)
+		if opt != nil {
+			opt(b)
+		}
 	}
 
 	network := "tcp"

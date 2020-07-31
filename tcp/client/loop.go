@@ -33,7 +33,7 @@ func tcpUnixLoop(config *base.Config, opts ...Opt) (err error) {
 	var done = make(chan bool, 1)
 	var tid = 1
 
-	ctc := tls2.NewCmdrTlsConfig(config.PrefixInConfigFile, config.PrefixInCommandLine)
+	ctc := tls2.NewCmdrTlsConfig(config.PrefixInConfigFile+".tls", config.PrefixInCommandLine)
 	conn, err = ctc.Dial(config.Network, config.Addr)
 
 	if err != nil {
@@ -70,7 +70,9 @@ func udpLoop(config *base.Config, opts ...Opt) (err error) {
 	co := newClientObj(nil, config.Logger, opts...)
 	defer co.Join(ctx, done)
 
-	uo := udp.NewUdpObj(co, nil, nil)
+	ln := cmdr.GetIntRP(config.PrefixInConfigFile, "listeners", 0)
+
+	uo := udp.New(co, udp.WithListenerNumber(ln))
 	if err = uo.Connect(ctx, config.Network, config); err != nil {
 		config.Logger.Errorf("failed to create udp socket handler: %v", err)
 		return

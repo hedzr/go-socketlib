@@ -21,7 +21,7 @@ type Obj struct {
 	connections         []*connectionObj
 	closeErr            error
 	exitCh              chan struct{}
-	pfs                 *pidFileStruct
+	pfs                 base.PidFile
 	newConnFunc         NewConnectionFunc
 	protocolInterceptor protocol.Interceptor
 	prefix              string
@@ -102,7 +102,7 @@ func (s *Obj) isUDP() bool {
 
 func (s *Obj) createUDPListener(config *base.Config) (err error) {
 	if s.udpConn == nil {
-		s.udpConn = udp.NewUdpObj(s, nil, nil)
+		s.udpConn = udp.New(s, nil, nil)
 	}
 	err = s.udpConn.Create(s.netType, config)
 	return

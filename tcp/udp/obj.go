@@ -18,30 +18,45 @@ import (
 type Obj struct {
 	log.Logger
 	protocol.InterceptorHolder
-	conn          *net.UDPConn
-	addr          *net.UDPAddr
-	baseConn      base.Conn
-	maxBufferSize int
-	rb            fast.RingBuffer
-	debugMode     bool
-	connected     bool
-	rdCh          chan *base.UdpPacket
-	wrCh          chan *base.UdpPacket
-	WriteTimeout  time.Duration
-	wg            sync.WaitGroup
-	closed        int32
+	conn           *net.UDPConn
+	addr           *net.UDPAddr
+	baseConn       base.Conn
+	maxBufferSize  int
+	rb             fast.RingBuffer
+	debugMode      bool
+	connected      bool
+	rdCh           chan *base.UdpPacket
+	wrCh           chan *base.UdpPacket
+	WriteTimeout   time.Duration
+	wg             sync.WaitGroup
+	listenerNumber int
+	closed         int32
 }
 
-func NewUdpObj(so protocol.InterceptorHolder, conn *net.UDPConn, addr *net.UDPAddr) *Obj {
+type Opt func(*Obj)
+
+func WithListenerNumber(n int) Opt {
+	return func(obj *Obj) {
+		obj.listenerNumber = n
+	}
+}
+
+func WithUDPConn(conn *net.UDPConn, addr *net.UDPAddr) Opt {
+	return func(obj *Obj) {
+		obj.conn, obj.addr = conn, addr
+	}
+}
+
+func New(so protocol.InterceptorHolder, opts ...Opt) (obj *Obj) {
 	if x := fast.New(DefaultPacketQueueSize,
 		fast.WithDebugMode(false),
 		fast.WithLogger(so.(log.Logger)),
 	); x != nil {
-		return &Obj{
+		obj = &Obj{
 			Logger:            so.(log.Logger),
 			InterceptorHolder: so,
-			conn:              conn,
-			addr:              addr,
+			conn:              nil,
+			addr:              nil,
 			maxBufferSize:     DefaultPacketSize,
 			rb:                x,
 			debugMode:         false,
@@ -50,7 +65,14 @@ func NewUdpObj(so protocol.InterceptorHolder, conn *net.UDPConn, addr *net.UDPAd
 			WriteTimeout:      10 * time.Second,
 		}
 	}
-	return nil
+
+	for _, opt := range opts {
+		if obj != nil && opt != nil {
+			opt(obj)
+		}
+	}
+
+	return
 }
 
 func (s *Obj) IsConnected() bool {
@@ -189,7 +211,10 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
 
-	for i, max := 0, runtime.NumCPU(); i < max; i++ {
+	if s.listenerNumber < 1 {
+		s.listenerNumber = runtime.NumCPU()
+	}
+	for i, max := 0, s.listenerNumber; i < max; i++ {
 		ctx1 := context.WithValue(ctx, "tid", i)
 		go s.listen(ctx1)
 	}

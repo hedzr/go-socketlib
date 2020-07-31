@@ -23,6 +23,10 @@ func (c *udpConnWrapper) RawWrite(ctx context.Context, message []byte) (n int, e
 	return c.conn.Write(message)
 }
 
+func (c *udpConnWrapper) String() string {
+	return c.conn.RemoteAddr().String()
+}
+
 //type connWrapper struct {
 //	*Obj
 //}
