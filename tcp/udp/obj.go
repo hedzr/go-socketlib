@@ -134,12 +134,18 @@ func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) 
 		} else {
 			ip = net.ParseIP(sip)
 			if ip == nil {
-				var ipAddr *net.IPAddr
-				ipAddr, err = net.ResolveIPAddr("ip", sip)
+				var udpAddr *net.UDPAddr
+				udpAddr, err = net.ResolveUDPAddr(config.Network, sip)
 				if err != nil {
-					return
+					var ipAddr *net.IPAddr
+					ipAddr, err = net.ResolveIPAddr("ip", sip)
+					if err != nil {
+						return
+					}
+					ip = ipAddr.IP
+				} else {
+					ip = udpAddr.IP
 				}
-				ip = ipAddr.IP
 			}
 		}
 
@@ -212,6 +218,9 @@ func (s *Obj) Create(network string, config *base.Config) (err error) {
 				s.conn, err = net.ListenMulticastUDP(network, en4, s.addr)
 			} else {
 				s.conn, err = net.ListenUDP(network, s.addr)
+				if err == nil {
+					err = s.conn.SetReadBuffer(1048576)
+				}
 			}
 		}
 	}
@@ -541,7 +550,7 @@ func (s *Obj) clientListener(baseCtx context.Context) {
 		// fmt.Println("from", remoteAddr, "-", buffer[:n])
 		sd := make([]byte, n)
 		copy(sd, buffer[:n])
-		s.Tracef("[udp.listener.client] #%-5d : %v -> % x %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Debugf("[udp.listener.client] #%-5d : %v -> % x %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	retryPut:
 		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
 		if err != nil {

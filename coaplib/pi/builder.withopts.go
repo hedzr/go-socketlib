@@ -1,7 +1,6 @@
 package pi
 
 import (
-	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/coaplib/message"
 	"gopkg.in/hedzr/errors.v2"
@@ -124,8 +123,35 @@ func (s *Builder) Reset() *Builder {
 	return s
 }
 
-func (s *Builder) WithOnACK(fn func(ctx context.Context, sent, recv *message.Message) (err error)) *Builder {
-	s.msg.WithOnACK(fn)
+func (s *Builder) WithOnACK(fn message.OnACKHandler) *Builder {
+	if fn != nil {
+		s.msg.WithOnACK(fn)
+	}
+	return s
+}
+
+func (s *Builder) WithOnEvent(fn message.OnEventHandler) *Builder {
+	if fn != nil {
+		s.msg.WithOnEvent(fn)
+	}
+	return s
+}
+
+func (s *Builder) WithRegister(reg int) *Builder {
+	if reg == 0 || reg == 1 {
+		o1 := s.addOptionUint64(message.OptionNumberObserve, uint64(reg))
+		o2 := s.addOptionUint64(message.OptionNumberAccept, uint64(message.TextPlain))
+		s.msg.Options = append(s.msg.Options, o1, o2)
+	}
+	return s
+}
+
+func (s *Builder) WithMessageOptions(options ...message.Opt) *Builder {
+	for _, o := range options {
+		if o != nil {
+			s.msg.Options = append(s.msg.Options, o)
+		}
+	}
 	return s
 }
 
@@ -268,6 +294,20 @@ func (s *Builder) WithSize2(sz int) *Builder {
 	return s
 }
 
+func (s *Builder) WithRequestBlock1Num(number int, maxSizeInBytes uint) *Builder {
+	block := message.NewBlock2(number, false, maxSizeInBytes, nil)
+
+	for i, o := range s.msg.Options {
+		if o.Number() == message.OptionNumberBlock2 {
+			s.msg.Options[i] = s.blockToOption(block, o.Number())
+			return s
+		}
+	}
+
+	s.blocks2 = append(s.blocks2, block)
+	return s
+}
+
 func (s *Builder) WithBlock1(block message.Block) *Builder {
 	s.blocks1 = nil
 	s.blocks1 = append(s.blocks1, block)
@@ -280,20 +320,6 @@ func (s *Builder) WithBlock1Append(block message.Block) *Builder {
 }
 
 func (s *Builder) WithBlock2Append(block message.Block) *Builder {
-	s.blocks2 = append(s.blocks2, block)
-	return s
-}
-
-func (s *Builder) WithRequestBlock2Num(number int, maxSizeInBytes uint) *Builder {
-	block := message.NewBlock2(number, false, maxSizeInBytes, nil)
-
-	for i, o := range s.msg.Options {
-		if o.Number() == message.OptionNumberBlock2 {
-			s.msg.Options[i] = s.blockToOption(block, o.Number())
-			return s
-		}
-	}
-
 	s.blocks2 = append(s.blocks2, block)
 	return s
 }

@@ -57,7 +57,9 @@ func (s *optionDecoder) decodeOptionIfNoneMatch(optNum OptionNumber, data []byte
 }
 
 func (s *optionDecoder) decodeOptionObserve(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	n := decodeUint64(data)
+	opt = NewUint64Opt(optNum, n)
+	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
@@ -77,13 +79,15 @@ func (s *optionDecoder) decodeOptionUriPath(optNum OptionNumber, data []byte) (o
 }
 
 func (s *optionDecoder) decodeOptionContentFormat(optNum OptionNumber, data []byte) (opt Opt) {
-	n := decodeUint16(data)
-	opt = NewOptContentFormat(MediaType(n))
+	n := decodeUint64(data)
+	opt = NewOptMediaType(MediaType(n))
 	return
 }
 
 func (s *optionDecoder) decodeOptionMaxAge(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	n := decodeUint64(data)
+	opt = NewUint64Opt(optNum, n)
+	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
@@ -113,21 +117,23 @@ func (s *optionDecoder) decodeOptionBlock1(optNum OptionNumber, data []byte) (op
 }
 
 func (s *optionDecoder) decodeOptionSize2(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	n := decodeUint64(data)
+	opt = NewUint64Opt(optNum, n)
 	return
 }
 
 func (s *optionDecoder) decodeOptionProxyUri(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
 func (s *optionDecoder) decodeOptionProxyScheme(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
 func (s *optionDecoder) decodeOptionSize1(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+	n := decodeUint64(data)
+	opt = NewUint64Opt(optNum, n)
 	return
 }

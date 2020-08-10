@@ -33,6 +33,15 @@ func FindOption(num OptionNumber, options []Opt) (opt Opt) {
 	return
 }
 
+func FindOptions(num OptionNumber, options []Opt) (opt []Opt) {
+	for _, o := range options {
+		if o.Number() == num {
+			opt = append(opt, o)
+		}
+	}
+	return
+}
+
 type MsgOption func(s *Message)
 
 // WithType:

@@ -3,6 +3,7 @@ package message
 import (
 	"fmt"
 	"gopkg.in/hedzr/errors.v2"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -32,14 +33,16 @@ type LinkFormat struct {
 type lfKV map[string]interface{}
 
 type lfResource struct {
-	src string
+	Href          string
+	ContentType   MediaType // "ct"
+	ResType       string    // "rt": Resource Type 'rt' Attribute
+	If            string    // "if": Interface Description 'if' Attribute
+	Size          int       // "sz": Maximum Size Estimate 'sz' Attribute
+	Title         string    // "title":
+	Observable    bool      // "obs":
+	ObserverToken uint64
+	// rel, anchor, rev, hreflang, title*, type, ...
 	lfKV
-	Size        int
-	Title       string
-	ResType     string
-	If          string
-	ContentType MediaType
-	Observable  bool
 }
 
 func (s *LinkFormat) Parse(data string) (err error) {
@@ -47,10 +50,11 @@ func (s *LinkFormat) Parse(data string) (err error) {
 	if err == nil {
 		for _, res := range s.ResArray {
 			if res.Observable {
-				s.Observables[res.src] = res
+				res.ObserverToken = rand.Uint64()
+				s.Observables[res.Href] = res
 				continue
 			}
-			s.Resources[res.src] = res
+			s.Resources[res.Href] = res
 		}
 	}
 	return
@@ -73,7 +77,7 @@ func (s *LinkFormatParser) Parse(data string) (res []*lfResource, err error) {
 		sl := strings.Split(it, ";")
 		if len(sl) >= 1 {
 			lfRes := &lfResource{
-				src:         strings.Trim(sl[0], "<>"),
+				Href:        strings.Trim(sl[0], "<>"),
 				Size:        -1,
 				ContentType: MediaTypeUndefined,
 				lfKV:        make(lfKV),
@@ -141,7 +145,7 @@ func (s *LinkFormatParser) ToBytes(res []*lfResource) []byte {
 			}
 
 			ss.WriteRune('<')
-			ss.WriteString(rs.src)
+			ss.WriteString(rs.Href)
 			ss.WriteRune('>')
 
 			if len(rs.ResType) > 0 {

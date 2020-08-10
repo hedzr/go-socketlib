@@ -141,6 +141,10 @@ func (s *stringOpt) Bytes() []byte {
 	return []byte(s.Data)
 }
 
+func (s *stringOpt) StringData() string {
+	return s.Data
+}
+
 //
 //
 //
@@ -163,11 +167,22 @@ func (s *optUint64) Number() OptionNumber { return s.Type }
 func (s *optUint64) Bytes() []byte {
 	var bb bytes.Buffer
 	_ = binary.Write(&bb, binary.BigEndian, s.Data)
-	return bb.Bytes()
+
+	var ret = bb.Bytes()
+	for i := 0; i < len(ret); i++ {
+		if ret[i] != 0 {
+			return ret[i:]
+		}
+	}
+	return nil
 }
 
 func (s *optUint64) String() string {
 	return fmt.Sprintf("Number=%08X", s.Data)
+}
+
+func (s *optUint64) Uint64Data() uint64 {
+	return s.Data
 }
 
 //
@@ -247,12 +262,23 @@ type optETag struct {
 	ETag uint64
 }
 
+func (s *optETag) Uint64Data() uint64 {
+	return s.ETag
+}
+
 func (s *optETag) Number() OptionNumber { return OptionNumberETag }
 
 func (s *optETag) Bytes() []byte {
 	var bb bytes.Buffer
 	_ = binary.Write(&bb, binary.BigEndian, s.ETag)
-	return bb.Bytes()
+
+	var ret = bb.Bytes()
+	for i := 0; i < len(ret); i++ {
+		if ret[i] != 0 {
+			return ret[i:]
+		}
+	}
+	return nil
 }
 
 func (s *optETag) String() string {
@@ -263,26 +289,37 @@ func (s *optETag) String() string {
 //
 //
 
-func NewOptContentFormat(mt MediaType) Opt {
-	return &optContentFormat{MediaType: mt}
+func NewOptMediaType(mt MediaType) Opt {
+	return &optMediaType{MediaType: mt}
 }
 
-type optContentFormat struct {
+type optMediaType struct {
 	optBase
 	MediaType
 }
 
-func (s *optContentFormat) Number() OptionNumber {
+func (s *optMediaType) MediaTypeData() MediaType {
+	return s.MediaType
+}
+
+func (s *optMediaType) Number() OptionNumber {
 	return OptionNumberContentFormat
 }
 
-func (s *optContentFormat) Bytes() []byte {
+func (s *optMediaType) Bytes() []byte {
 	var bb bytes.Buffer
 	_ = binary.Write(&bb, binary.BigEndian, s.MediaType)
-	return bb.Bytes()
+
+	var ret = bb.Bytes()
+	for i := 0; i < len(ret); i++ {
+		if ret[i] != 0 {
+			return ret[i:]
+		}
+	}
+	return nil
 }
 
-func (s *optContentFormat) String() string {
+func (s *optMediaType) String() string {
 	return fmt.Sprintf("%q", s.MediaType.String())
 }
 

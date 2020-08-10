@@ -127,6 +127,18 @@ const (
 	//ContentFormatJson        ContentFormat = 50
 )
 
+func (i OptionNumber) IsCritical() bool {
+	return (i & 1) != 0
+}
+
+func (i OptionNumber) IsUnsafe() bool {
+	return (i & 2) != 0
+}
+
+func (i OptionNumber) IsNoCacheKey() bool {
+	return (i & 0x1e) != 0x1c
+}
+
 // Option value format (RFC7252 section 3.2)
 type ValueFormat uint8
 

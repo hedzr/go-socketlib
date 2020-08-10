@@ -56,9 +56,9 @@ func (s *Builder) Build() (out *message.Message) {
 	return
 }
 
-func (s *Builder) addOptionUint64(i uint64) (opt message.Opt) {
+func (s *Builder) addOptionUint64(optNum message.OptionNumber, i uint64) (opt message.Opt) {
 	if i >= 0 {
-		opt = message.NewUint64Opt(s.optNum, i)
+		opt = message.NewUint64Opt(optNum, i)
 
 		//length := s.msg.CalcDigitLen(i)
 		//delta := s.optNum - s.lastOptNum
@@ -124,7 +124,7 @@ func (s *Builder) addOptionString(str string) (opt message.Opt) {
 
 func (s *Builder) addOptionIfMatch() (opt []message.Opt) {
 	if s.ifMatch > 0 {
-		opt = append(opt, s.addOptionUint64(s.ifMatch))
+		opt = append(opt, s.addOptionUint64(s.optNum, s.ifMatch))
 	}
 	return
 }
@@ -139,14 +139,14 @@ func (s *Builder) addOptionUriHost() (opt []message.Opt) {
 
 func (s *Builder) addOptionETag() (opt []message.Opt) {
 	if s.eTag > 0 {
-		opt = append(opt, s.addOptionUint64(s.eTag))
+		opt = append(opt, s.addOptionUint64(s.optNum, s.eTag))
 	}
 	return
 }
 
 func (s *Builder) addOptionIfNoneMatch() (opt []message.Opt) {
 	if s.ifNoneMatch > 0 {
-		opt = append(opt, s.addOptionUint64(s.ifNoneMatch))
+		opt = append(opt, s.addOptionUint64(s.optNum, s.ifNoneMatch))
 	}
 	return
 }
@@ -181,14 +181,14 @@ func (s *Builder) addOptionUriPath() (opt []message.Opt) {
 
 func (s *Builder) addOptionContentFormat() (opt []message.Opt) {
 	if s.msg.Payload != nil {
-		opt = append(opt, s.addOptionUint64(uint64(s.msg.Payload.ContentFormat())))
+		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.msg.Payload.ContentFormat())))
 	}
 	return
 }
 
 func (s *Builder) addOptionMaxAge() (opt []message.Opt) {
 	if s.maxAge != 60 && s.maxAge > 0 {
-		opt = append(opt, s.addOptionUint64(uint64(s.maxAge)))
+		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.maxAge)))
 	}
 	return
 }
@@ -198,20 +198,33 @@ func (s *Builder) addOptionUriQuery() (opt []message.Opt) {
 		return
 	}
 
-	opt = append(opt, s.addOptionString(s.uri.RawQuery))
+	for k, vs := range s.uri.Query() {
+		for _, v := range vs {
+			opt = append(opt, s.addOptionString(url.QueryEscape(k)+"="+url.QueryEscape(v)))
+		}
+	}
+	//opt = append(opt, s.addOptionString(s.uri.RawQuery))
 	return
 }
 
 func (s *Builder) addOptionAccept() (opt []message.Opt) {
 	if s.accept != message.MediaTypeUndefined {
-		opt = append(opt, s.addOptionUint64(uint64(s.accept)))
+		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.accept)))
 	}
 	return
 }
 
 func (s *Builder) addOptionLocationQuery() (opt []message.Opt) {
 	if len(s.locationQuery) > 0 {
-		opt = append(opt, s.addOptionString(s.locationQuery))
+		values, err := url.ParseQuery(s.locationQuery)
+		if err == nil {
+			for k, vs := range values {
+				for _, v := range vs {
+					opt = append(opt, s.addOptionString(url.QueryEscape(k)+"="+url.QueryEscape(v)))
+				}
+			}
+		}
+		//opt = append(opt, s.addOptionString(s.locationQuery))
 	}
 	return
 }
@@ -232,14 +245,14 @@ func (s *Builder) addOptionProxyScheme() (opt []message.Opt) {
 
 func (s *Builder) addOptionSize1() (opt []message.Opt) {
 	if s.size1 > 0 {
-		opt = append(opt, s.addOptionUint64(s.size1))
+		opt = append(opt, s.addOptionUint64(s.optNum, s.size1))
 	}
 	return
 }
 
 func (s *Builder) addOptionSize2() (opt []message.Opt) {
 	if s.size2 > 0 {
-		opt = append(opt, s.addOptionUint64(s.size2))
+		opt = append(opt, s.addOptionUint64(s.optNum, s.size2))
 	}
 	return
 }

@@ -28,6 +28,8 @@ func TestNewLinkFormat(t *testing.T) {
 	} else {
 		t.Logf("res: %v", lf)
 	}
+
+	lf = nil
 }
 
 const (

@@ -6,7 +6,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"gopkg.in/hedzr/errors.v2"
+	"net/url"
+	"path"
+	"sort"
 	"strings"
+	"time"
 )
 
 type Message struct {
@@ -18,11 +22,26 @@ type Message struct {
 	Options   []Opt
 	Payload   Payload
 	err       error
-	OnACK     func(ctx context.Context, sent, recv *Message) (err error)
+	ts        time.Time
+
+	OnACK   OnACKHandler
+	OnEvent OnEventHandler
+
+	// available in received message
+
+	MediaType MediaType
 }
+
+type OnACKHandler func(ctx context.Context, sent, recv *Message) (err error)
+type OnEventHandler func(ctx context.Context, key string, token uint64, recv *Message)
 
 func (s *Message) FindOption(num OptionNumber) (opt Opt) {
 	opt = FindOption(num, s.Options)
+	return
+}
+
+func (s *Message) FindOptions(num OptionNumber) (opt []Opt) {
+	opt = FindOptions(num, s.Options)
 	return
 }
 
@@ -50,24 +69,35 @@ func (s *Message) CalcDigitLen(i uint64) (length int) {
 	return
 }
 
-func (s *Message) WithOnACK(fn func(ctx context.Context, sent, recv *Message) (err error)) {
+func (s *Message) WithOnACK(fn OnACKHandler) {
 	s.OnACK = fn
 }
 
+func (s *Message) WithOnEvent(fn OnEventHandler) {
+	s.OnEvent = fn
+}
+
+func (s *Message) RaiseOnEvent(ctx context.Context, key string, token uint64, recv *Message) {
+	if s.OnEvent != nil {
+		s.OnEvent(ctx, key, token, recv)
+	}
+}
+
 func (s *Message) SetToken(token uint64) {
-	s.Token = token
-	s.TKL = TKL(s.CalcDigitLen(token))
-	return
+	if token != 0 {
+		s.Token = token
+		s.TKL = TKL(s.CalcDigitLen(token))
+	}
 }
 
 func (s *Message) Encode() (output []byte, err error) {
+	output, err = s.AsBytes(), s.err
 	return
 }
 
 func (s *Message) Decode(data []byte) (err error) {
 	var i, newI int
 	var b = data[i]
-	var mt = TextPlain
 
 	ver := b >> 6
 	if ver != 1 {
@@ -75,13 +105,13 @@ func (s *Message) Decode(data []byte) (err error) {
 		return
 	}
 
-	s.Type = Type(b>>4) & 3
-
 	s.TKL = TKL(b & 0x0f)
 	if s.TKL >= 9 {
 		err = errors.New("invalid TKL: %v", s.TKL)
 		return
 	}
+
+	s.ts, s.MediaType, s.Type = time.Now().UTC(), MediaTypeUndefined, Type(b>>4)&3
 
 	i++
 	s.Code = Code(data[i])
@@ -102,11 +132,11 @@ func (s *Message) Decode(data []byte) (err error) {
 	}
 
 	if opt := s.FindOption(OptionNumberContentFormat); opt != nil {
-		mt = opt.(*optContentFormat).MediaType
+		s.MediaType = opt.(*optMediaType).MediaType
 	}
 
 	// Payload if any
-	s.Payload = payloadCreate(data, newI, mt, s.Options)
+	s.Payload = payloadCreate(data, newI, s.MediaType, s.Options)
 	return
 }
 
@@ -197,6 +227,36 @@ func (s *Message) String() string {
 		l, s.Payload)
 }
 
+func (s *Message) Href() string {
+	var uri url.URL
+	opts := s.FindOptions(OptionNumberURIHost)
+	for _, opt := range opts {
+		if o, ok := opt.(interface{ StringData() string }); ok {
+			uri.Host = o.StringData()
+		}
+	}
+	opts = s.FindOptions(OptionNumberURIPath)
+	for _, opt := range opts {
+		if o, ok := opt.(interface{ StringData() string }); ok {
+			uri.Path = path.Join(uri.Path, o.StringData())
+		}
+	}
+	opts = s.FindOptions(OptionNumberURIQuery)
+	var q []string
+	for _, opt := range opts {
+		if o, ok := opt.(interface{ StringData() string }); ok {
+			q = append(q, o.StringData())
+		}
+	}
+	uri.RawQuery = strings.Join(q, "&")
+
+	href := uri.Path
+	if len(href) > 0 && href[0] != '/' {
+		href = "/" + href
+	}
+	return href
+}
+
 func (s *Message) As() {
 
 }
@@ -204,7 +264,7 @@ func (s *Message) As() {
 func (s *Message) AsBytes() (out []byte) {
 	var bb bytes.Buffer
 
-	s.err = bb.WriteByte(ver<<6 | byte(s.Type<<4) | byte(s.TKL))
+	s.err = bb.WriteByte(verBits | byte(s.Type<<4) | byte(s.TKL))
 	if s.err != nil {
 		return
 	}
@@ -233,8 +293,15 @@ func (s *Message) AsBytes() (out []byte) {
 		oneByteBuffer = []byte{0}
 	)
 
+	tSlice := make(sort.IntSlice, len(s.Options))
+	for i, o := range s.Options {
+		tSlice[i] = (int(o.Number()) << 16) + i
+	}
+	sort.Slice(tSlice, tSlice.Less)
+
 	//lastON,length := OptionNumberReserved,0
-	for _, o := range s.Options {
+	for _, ix := range tSlice {
+		o := s.Options[ix&0xffff]
 		if o != nil {
 			delta, data = o.Number()-lastOptNum, o.Bytes()
 			lastOptNum, length = o.Number(), len(data)
@@ -243,9 +310,11 @@ func (s *Message) AsBytes() (out []byte) {
 			if s.err != nil {
 				return
 			}
-			_, s.err = bb.Write(data)
-			if s.err != nil {
-				return
+			if length > 0 {
+				_, s.err = bb.Write(data)
+				if s.err != nil {
+					return
+				}
 			}
 		}
 	}
@@ -257,7 +326,9 @@ func (s *Message) AsBytes() (out []byte) {
 
 	// s.err = w.Flush()
 	out = bb.Bytes()
+	s.ts = time.Now().UTC()
 	return
 }
 
 const ver = byte(1)
+const verBits = ver << 6

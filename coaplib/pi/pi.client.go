@@ -6,7 +6,6 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
-	"time"
 )
 
 func NewCoAPClientInterceptor() protocol.ClientInterceptor {
@@ -70,13 +69,29 @@ func (p *Pic) OnUDPReading(ctx context.Context, c log.Logger, packet *base.UdpPa
 	//...
 	c.Debugf("[COAP] ⬇ OnUDPReading: msg = %v", m.String())
 
-	if m.Type == message.ACK {
+	switch m.Type {
+	case message.ACK:
 		if sent, ok := p.sentMessages[m.MessageID]; ok {
 			delete(p.sentMessages, m.MessageID)
 			//c.Tracef("sent, recv := %v, %v", sent, m)
 			if sent.OnACK != nil {
 				if err = sent.OnACK(ctx, sent, m); err != nil {
 					c.Errorf("OnReading, sent.OnACK() failed: %v", err)
+				}
+			} else if m.MediaType == message.AppLinkFormat {
+				if err = p.OnAckLinkFormat(ctx, sent, m); err != nil {
+					c.Errorf("OnReading, pic.OnAckLinkFormat() failed: %v", err)
+				}
+			}
+		}
+
+	case message.CON:
+		if opt := m.FindOption(message.OptionNumberObserve); opt != nil {
+			if _, ok := opt.(interface{ Uint64Data() uint64 }); ok {
+				err = p.ACK(ctx, m.MessageID)
+				token := m.Token
+				if sent, ok := p.observed[token]; ok {
+					sent.RaiseOnEvent(ctx, sent.Href(), token, m)
 				}
 			}
 		}
@@ -87,9 +102,9 @@ func (p *Pic) OnUDPReading(ctx context.Context, c log.Logger, packet *base.UdpPa
 }
 
 func (p *Pic) OnUDPWriting(ctx context.Context, c log.Logger, packet *base.UdpPacket) (processed bool, err error) {
-	c.Debugf("OnUDPWriting")
+	c.Debugf("OnUDPWriting to %s: %d bytes", packet.RemoteAddr.String(), len(packet.Data))
 
-	time.Sleep(100 & time.Millisecond)
+	// time.Sleep(100 & time.Millisecond)
 
 	// processed = false
 	return
