@@ -19,6 +19,7 @@ go 1.13
 require (
 	github.com/hedzr/cmdr v1.7.3
 	github.com/hedzr/cmdr-addons v1.1.3
+	github.com/hedzr/errors-for-mqtt v0.0.0-20200131075626-078ef44b8621
 	github.com/hedzr/go-ringbuf v0.8.7
 	github.com/hedzr/log v0.1.15
 	github.com/hedzr/logex v1.2.7

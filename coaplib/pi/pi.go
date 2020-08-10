@@ -33,7 +33,7 @@ func (s *piCoAP) OnServerClosed(so log.Logger) {
 }
 
 func (s *piCoAP) OnConnected(ctx context.Context, c base.Conn) {
-	c.Logger().Debugf("OnConnected")
+	c.Logger().Debugf("OnConnected: %v", c)
 }
 
 func (s *piCoAP) OnClosing(c base.Conn, reason int) {

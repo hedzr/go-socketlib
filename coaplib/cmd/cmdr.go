@@ -1,14 +1,11 @@
 package cmd
 
 import (
-	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/coaplib/pi"
-	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/go-socketlib/tcp/server"
-	"time"
 )
 
 func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
@@ -37,11 +34,11 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 	var pic = pi.NewCoAPClientInterceptor()
 	optcx1 := client.WithClientProtocolInterceptor(pic)
 	ox1 := client.WithCmdrClientOptions(optcx1)
-	ox2 := client.WithCmdrPort(0)
-	ox3 := client.WithCmdrUDPMode(true)
-	ox4 := client.WithCmdrCommandAction(client.DefaultLooper)
-	ox5 := client.WithCmdrMainLoop(coapMainLoop)
-	ox6 := client.WithCmdrPrefixPrefix("coap")
+	ox2 := client.WithCmdrPort(0)                                        // get ports configs from config file
+	ox3 := client.WithCmdrUDPMode(true)                                  // enable udp mode and loop (udpLoop)
+	ox4 := client.WithCmdrCommandAction(client.DefaultLooper)            // default internal looper
+	ox5 := client.WithCmdrMainLoop(pic.(client.MainLoopHolder).MainLoop) // coapMainLoop will block the main thread to exit to OS
+	ox6 := client.WithCmdrPrefixPrefix("coap")                           // prefix of prefix is used for loading the coap section from config file
 
 	client.AttachToCmdr(cmd, ox1, ox2, ox3, ox4, ox5, ox6)
 
@@ -49,13 +46,18 @@ func AttachToCmdr(cmd cmdr.OptCmd, opts ...server.CmdrOpt) {
 	cmdr.NewBool().
 		Titles("dry-run", "dr", "dryrun").
 		Description("In dry-run mode, arguments will be parsed, tcp listener will not be stared.").
-		Group("zzz1.Dry Run").
+		Group("zzz1.Testers").
 		AttachTo(clientCmdrOpt)
-	clientCmdrOpt.ToCommand().FindFlag("host").DefaultValue = "coap://coap.me"
+	cmdr.NewBool().
+		Titles("try-debug", "try").
+		Description("In try-debug mode, A continuous send/recv (to coap.me) processing will be started automatically.").
+		Group("zzz1.Testers").
+		AttachTo(clientCmdrOpt)
+	clientCmdrOpt.ToCommand().FindFlag("host").DefaultValue = remoteCaliforniumEclipseOrg
 
 }
 
-func coapMainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config) {
-	time.Sleep(time.Second)
-	config.PressEnterToExit()
-}
+const (
+	remoteCoapMe                = "coap://coap.me"
+	remoteCaliforniumEclipseOrg = "coap://californium.eclipse.org"
+)
