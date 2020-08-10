@@ -29,6 +29,10 @@ func (c *udpConnWrapper) String() string {
 	return c.conn.RemoteAddr().String()
 }
 
+func (c *udpConnWrapper) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
 //type connWrapper struct {
 //	*Obj
 //}

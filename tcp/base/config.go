@@ -19,6 +19,7 @@ type Config struct {
 
 	Addr                string
 	Uri                 *url.URL
+	UriBase             string
 	Adapter             string // network adapter name. such as "en4". default "". for udp multicast
 	PrefixInCommandLine string
 	PrefixInConfigFile  string
@@ -73,7 +74,7 @@ func (c *Config) BuildLogger() {
 	c.Logger = build.New(c.LoggerConfig)
 }
 
-func (c *Config) BuildPidFile() *pidFileStruct {
+func (c *Config) BuildPidFileStruct() *pidFileStruct {
 	return makePidFS(c.PrefixInCommandLine, c.PrefixInConfigFile, c.PidDir)
 }
 
@@ -113,6 +114,7 @@ func (c *Config) BuildAddr() (err error) {
 	if strings.Contains(c.Addr, "://") {
 		return c.BuildUriAddr(cmdr.GetStringRP(c.PrefixInCommandLine, "port"))
 	}
+	c.UriBase = c.Addr
 	host, port, err = net.SplitHostPort(c.Addr)
 	if port == "" || port == "0" {
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
@@ -134,6 +136,7 @@ func (c *Config) BuildAddr() (err error) {
 func (c *Config) BuildUriAddr(defaultPort string) (err error) {
 	c.Uri, err = url.Parse(cmdr.GetStringRP(c.PrefixInCommandLine, "host"))
 	if err == nil {
+		c.UriBase = c.Uri.String()
 		port := c.Uri.Port()
 		if port == "" || port == "0" {
 			if defaultPort == "" || defaultPort == "0" {

@@ -18,16 +18,17 @@ import (
 type Obj struct {
 	log.Logger
 	protocol.InterceptorHolder
-	conn           *net.UDPConn
+
+	WriteTimeout time.Duration
+
 	addr           *net.UDPAddr
+	conn           *net.UDPConn
 	baseConn       base.Conn
 	maxBufferSize  int
 	rb             fast.RingBuffer
-	debugMode      bool
-	connected      bool
 	rdCh           chan *base.UdpPacket
 	wrCh           chan *base.UdpPacket
-	WriteTimeout   time.Duration
+	debugMode      bool
 	wg             sync.WaitGroup
 	listenerNumber int
 	closed         int32
@@ -76,13 +77,14 @@ func New(so protocol.InterceptorHolder, opts ...Opt) (obj *Obj) {
 }
 
 func (s *Obj) IsConnected() bool {
-	return s.connected
+	return s.baseConn != nil
 }
 
 func (s *Obj) AsBaseConn() base.Conn {
 	return s.baseConn
 }
 
+// Join will wait for all internal pumps stopped and close done chan bool
 func (s *Obj) Join(ctx context.Context, done chan bool) {
 	if s.baseConn != nil {
 		go func() { time.Sleep(100 * time.Millisecond); _ = s.Close() }()
@@ -159,7 +161,7 @@ func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) 
 
 			s.conn, err = net.DialUDP(config.Network, srcAddr, s.addr)
 			if err == nil {
-				s.connected = true
+				// s.connected = true
 				s.baseConn = &udpConnWrapper{s, s.conn, s.Logger}
 				s.Debugf("Connecting OK: %v / %v", config.Addr, config.Uri)
 				//err = s.conn.SetWriteBuffer(8192)
@@ -216,6 +218,26 @@ func (s *Obj) Create(network string, config *base.Config) (err error) {
 	return
 }
 
+func (s *Obj) ClientServe(baseCtx context.Context) (err error) {
+	ctx, cancel := context.WithCancel(baseCtx)
+	defer cancel()
+
+	if s.listenerNumber < 1 {
+		s.listenerNumber = runtime.NumCPU()
+	}
+	for i, max := 0, s.listenerNumber; i < max; i++ {
+		ctx1 := context.WithValue(ctx, "tid", i)
+		go s.clientListener(ctx1)
+	}
+
+	go s.readPump(ctx)
+	s.writePump(ctx)
+
+	// writePump will be end while wrCh closed (from Close())
+	// and defered cancel() will stop the readPump loop
+	return
+}
+
 func (s *Obj) Serve(baseCtx context.Context) (err error) {
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
@@ -225,7 +247,7 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 	}
 	for i, max := 0, s.listenerNumber; i < max; i++ {
 		ctx1 := context.WithValue(ctx, "tid", i)
-		go s.listen(ctx1)
+		go s.listener(ctx1)
 	}
 
 	go s.readPump(ctx)
@@ -285,7 +307,7 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 	}
 
 	if packet.RemoteAddr == nil {
-		s.Debugf("[udp.doWrite] writing: %v / %v", string(packet.Data), packet)
+		s.Tracef("[udp.doWrite] writing: %v / %v", string(packet.Data), packet)
 		deadline := time.Now().Add(s.WriteTimeout)
 		err = s.conn.SetWriteDeadline(deadline)
 		if err != nil {
@@ -299,7 +321,7 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 	}
 
 	//s.conn.SetWriteBuffer(33)
-	s.Debugf("[udp.doWrite] WriteToUDP: %v / %v", string(packet.Data), packet)
+	s.Tracef("[udp.doWrite] WriteToUDP: %v / %v", string(packet.Data), packet)
 	_, err = s.conn.WriteToUDP(packet.Data, packet.RemoteAddr)
 	if err != nil {
 		s.Errorf("[udp.doWrite] WriteToUDP error: %v", err)
@@ -316,9 +338,17 @@ func (s *Obj) writePump(ctx context.Context) {
 			s.Debugf("    .. writePump end.")
 		} else {
 			s.Errorf("    .. writePump end with error: %v", err)
+			if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
+				s.InterceptorHolder.ProtocolInterceptor().OnError(ctx, s.baseConn, err)
+			}
 		}
 		s.wg.Done()
 	}()
+
+	//// raise the connected event now
+	//if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
+	//	s.InterceptorHolder.ProtocolInterceptor().OnConnected(ctx, s.baseConn)
+	//}
 
 	for err == nil {
 		select {
@@ -331,6 +361,9 @@ func (s *Obj) writePump(ctx context.Context) {
 			}
 			if err = s.doWrite(ctx, data); err != nil {
 				s.Errorf("internal write failed: %v", err)
+				if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
+					s.InterceptorHolder.ProtocolInterceptor().OnError(ctx, s.baseConn, err)
+				}
 			}
 		}
 	}
@@ -376,18 +409,18 @@ func (s *Obj) readPump(ctx context.Context) {
 			}
 			s.Errorf("[udp.readPump] failed. err: %+v.", err)
 			if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
-				s.InterceptorHolder.ProtocolInterceptor().OnError(ctx, nil, err)
+				s.InterceptorHolder.ProtocolInterceptor().OnError(ctx, s.baseConn, err)
 			}
 		}
 
 		retry = 1
 		if packet, ok := it.(*base.UdpPacket); ok {
 			if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
-				if processed, err = s.InterceptorHolder.ProtocolInterceptor().OnUDPReading(ctx, s, packet); processed {
-					continue
-				} else if err != nil {
+				if processed, err = s.InterceptorHolder.ProtocolInterceptor().OnUDPReading(ctx, s, packet); err != nil {
 					s.Warnf("[udp.readPump] protocolInterceptor got error: %v", err)
 					err = nil
+					continue
+				} else if processed {
 					continue
 				}
 			}
@@ -401,7 +434,7 @@ func (s *Obj) readPump(ctx context.Context) {
 	}
 }
 
-func (s *Obj) listen(baseCtx context.Context) {
+func (s *Obj) listener(baseCtx context.Context) {
 	buffer := make([]byte, s.maxBufferSize)
 	retry, noDebug, n, remoteAddr, err := 0, s.debugMode, 0, new(net.UDPAddr), error(nil)
 
@@ -409,9 +442,9 @@ func (s *Obj) listen(baseCtx context.Context) {
 
 	defer func() {
 		if err == nil {
-			s.Debugf("    .. [udp.listen.routine] #%-5d listener end", baseCtx.Value("tid"))
+			s.Debugf("    .. [udp.listener] #%-5d listener end", baseCtx.Value("tid"))
 		} else {
-			s.Errorf("    .. [udp.listen.routine] #%-5d listener failed - %v", baseCtx.Value("tid"), err)
+			s.Errorf("    .. [udp.listener] #%-5d listener failed - %v", baseCtx.Value("tid"), err)
 		}
 		s.wg.Done()
 	}()
@@ -420,7 +453,7 @@ func (s *Obj) listen(baseCtx context.Context) {
 		n, remoteAddr, err = s.conn.ReadFromUDP(buffer)
 		if err != nil {
 			if strings.Contains(err.Error(), "use of closed network connection") {
-				// s.Tracef("    .. [udp.listen.routine] #%-5d client conn closed, remote is %q", baseCtx.Value("tid"), s.conn.RemoteAddr())
+				// s.Tracef("    .. [udp.listener] #%-5d client conn closed, remote is %q", baseCtx.Value("tid"), s.conn.RemoteAddr())
 				err = nil
 				return
 			}
@@ -437,12 +470,12 @@ func (s *Obj) listen(baseCtx context.Context) {
 		// `var r myapp.Request`, say, and `go handleRequest(r)` (or
 		// send it down a channel) to free up the listening
 		// goroutine. you do *need* to copy then, though,
-		// because you've only made one buffer per listen().
+		// because you've only made one buffer per listener().
 		//
 		// fmt.Println("from", remoteAddr, "-", buffer[:n])
 		sd := make([]byte, n)
 		copy(sd, buffer[:n])
-		s.Debugf("[udp.listen.routine] #%-5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Debugf("[udp.listener] #%-5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	retryPut:
 		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
 		if err != nil {
@@ -452,16 +485,82 @@ func (s *Obj) listen(baseCtx context.Context) {
 				retry++
 				if retry > 1000 {
 					if !noDebug && retry > 1000 {
-						s.Warnf("[udp.listen.routine] #%-5d (retry %v). quantity = %v. FULL! block till queue not full.", baseCtx.Value("tid"), retry, s.rb.Quantity())
+						s.Warnf("[udp.listener] #%-5d (retry %v). quantity = %v. FULL! block till queue not full.", baseCtx.Value("tid"), retry, s.rb.Quantity())
 					}
 					break
 				}
 				goto retryPut
 			}
-			s.Errorf("[udp.listen.routine] #-5d err: %+v.", baseCtx.Value("tid"), err)
+			s.Errorf("[udp.listener] #-5d err: %+v.", baseCtx.Value("tid"), err)
 			continue
 		}
-		s.Tracef("[udp.listen.routine] #%-5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Tracef("[udp.listener] #%-5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
+	}
+}
+
+func (s *Obj) clientListener(baseCtx context.Context) {
+	buffer := make([]byte, s.maxBufferSize)
+	retry, noDebug, n, remoteAddr, err := 0, s.debugMode, 0, new(net.UDPAddr), error(nil)
+
+	remoteAddr = s.conn.RemoteAddr().(*net.UDPAddr)
+
+	s.wg.Add(1)
+
+	defer func() {
+		if err == nil {
+			s.Debugf("    .. [udp.listener.client] #%-5d listener end", baseCtx.Value("tid"))
+		} else {
+			s.Errorf("    .. [udp.listener.client] #%-5d listener failed - %v", baseCtx.Value("tid"), err)
+		}
+		s.wg.Done()
+	}()
+
+	for err == nil {
+		n, err = s.conn.Read(buffer)
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				// s.Tracef("    .. [udp.listener.client] #%-5d client conn closed, remote is %q", baseCtx.Value("tid"), s.conn.RemoteAddr())
+				err = nil
+				return
+			}
+			return
+		}
+
+		select {
+		case <-baseCtx.Done():
+			return
+		default:
+		}
+
+		// you might copy out the contents of the packet here, to
+		// `var r myapp.Request`, say, and `go handleRequest(r)` (or
+		// send it down a channel) to free up the listening
+		// goroutine. you do *need* to copy then, though,
+		// because you've only made one buffer per listener().
+		//
+		// fmt.Println("from", remoteAddr, "-", buffer[:n])
+		sd := make([]byte, n)
+		copy(sd, buffer[:n])
+		s.Tracef("[udp.listener.client] #%-5d : %v -> % x %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+	retryPut:
+		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
+		if err != nil {
+			if err == fast.ErrQueueFull {
+				// block till queue not full
+				time.Sleep(time.Duration(retry) * time.Microsecond)
+				retry++
+				if retry > 1000 {
+					if !noDebug && retry > 1000 {
+						s.Warnf("[udp.listener.client] #%-5d (retry %v). quantity = %v. FULL! block till queue not full.", baseCtx.Value("tid"), retry, s.rb.Quantity())
+					}
+					break
+				}
+				goto retryPut
+			}
+			s.Errorf("[udp.listener.client] #-5d err: %+v.", baseCtx.Value("tid"), err)
+			continue
+		}
+		s.Tracef("[udp.listener.client] #%-5d : %v -> %v %q | enqueued", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	}
 }
 

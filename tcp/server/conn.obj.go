@@ -194,3 +194,7 @@ func (s *connectionObj) RawWrite(ctx context.Context, msg []byte) (n int, err er
 func (s *connectionObj) RemoteAddrString() string {
 	return s.conn.RemoteAddr().String()
 }
+
+func (s *connectionObj) RemoteAddr() net.Addr {
+	return s.conn.RemoteAddr()
+}

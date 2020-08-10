@@ -21,6 +21,10 @@ func (c *connWrapper) Close() {
 	_ = c.conn.Close()
 }
 
+func (c *connWrapper) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
 func (c *connWrapper) RawWrite(ctx context.Context, message []byte) (n int, err error) {
 	return c.conn.Write(message)
 }

@@ -21,7 +21,7 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	}
 
 	config.UpdatePrefixInConfigFile(so.prefix)
-	so.pfs = config.BuildPidFile()
+	so.pfs = config.BuildPidFileStruct()
 	so.netType = cmdr.GetStringRP(config.PrefixInConfigFile, "network",
 		cmdr.GetStringRP(config.PrefixInCommandLine, "network", so.netType))
 
@@ -84,6 +84,7 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 		serve      ServeFunc
 		so         *Obj
 		tlsEnabled bool
+		done       = make(chan bool, 1)
 	)
 	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
 	serve, so, tlsEnabled, err = newServer(config, opts...)
@@ -94,7 +95,6 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 		return
 	}
 
-	done := make(chan bool, 1)
 	go func() {
 		defer func() {
 			done <- true

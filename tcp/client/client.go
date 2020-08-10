@@ -25,6 +25,9 @@ const defaultNetType = "tcp"
 
 type CommandAction func(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error)
 type MainLoop func(ctx context.Context, conn base.Conn, done chan bool, config *base.Config)
+type MainLoopHolder interface {
+	MainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config)
+}
 
 func DefaultLooper(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)

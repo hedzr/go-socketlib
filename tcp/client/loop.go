@@ -79,7 +79,7 @@ func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 
 	// co.SetBaseConn(uo.AsBaseConn())
 	go func() {
-		if err = uo.Serve(ctx); err != nil {
+		if err = uo.ClientServe(ctx); err != nil {
 			config.Logger.Errorf("failed to communicate via udp socket handler: %v", err)
 		}
 		config.Logger.Debugf("Serve() end.")
