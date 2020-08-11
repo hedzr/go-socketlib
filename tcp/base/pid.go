@@ -1,6 +1,7 @@
 package base
 
 import (
+	"context"
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/cmdr-addons/pkg/plugins/dex/sig"
@@ -32,7 +33,7 @@ func makePidFSFromDir(dir string) *pidFileStruct {
 
 type PidFile interface {
 	Path() string
-	Create() (err error)
+	Create(baseCtx context.Context) (err error)
 	Destroy()
 	IsExists() bool
 }
@@ -57,7 +58,7 @@ func (pf *pidFileStruct) Path() string {
 	return pf.path
 }
 
-func (pf *pidFileStruct) Create() (err error) {
+func (pf *pidFileStruct) Create(ctx context.Context) (err error) {
 	dir := path.Dir(pf.path)
 	if err = exec.EnsureDir(dir); err != nil {
 		fmt.Printf(`
