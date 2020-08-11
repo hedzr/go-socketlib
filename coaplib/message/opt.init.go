@@ -4,7 +4,7 @@ var optDecoder *optionDecoder
 
 func init() {
 	optDecoder = &optionDecoder{}
-	optDecoder.decoders = map[OptionNumber]func(optNum OptionNumber, data []byte) Opt{
+	optDecoder.decoders = map[OptionNumber]func(optNum OptionNumber, data []byte) Option{
 		0:                         nil,
 		OptionNumberIfMatch:       optDecoder.decodeOptionIfMatch,
 		OptionNumberURIHost:       optDecoder.decodeOptionUriHost,

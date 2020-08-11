@@ -11,18 +11,40 @@ import (
 // NewBuilder make a builder instance.
 //
 // Usage:
-//     builder := pi.NewBuilder()
-//     msg := builder.New().
-//        WithType(message.CON).
-//        WithCode(message.MethodCodeType).
-//        Build()
+//
+//     builder := NewBuilder()
+//     msg := builder.
+//       WithType(message.CON).
+//       WithCode(message.MethodCodePOST).
+//       WithURIString("coap://coap.me/large").
+//       Build()
+//
+// Reuse a Builder:
+//
+//     builder := NewBuilder()
+//     //...
+//     msg := builder.Build()
+//     //...
+//     builder.From(msg, true)
+//     msg := builder.Build()
+//     //...
+//     builder.NewBase("coap://coap.me").WithURIPath("/test")
+//     msg := builder.Build()
+//
+// Duplicate a new builder from exists:
+//
+//     builder := NewBuilder()
+//     builderNew := builder.Clone()
+//
+// See also Builder.Reset(), Builder.Clone(), Builder.From(),
+// Builder.NewBase(), ....
 //
 func NewBuilder() *Builder {
 	return newBuilder()
 }
 
-func createOptionProcMap(b *Builder) (m map[message.OptionNumber]func() []message.Opt) {
-	m = map[message.OptionNumber]func() []message.Opt{
+func createOptionProcMap(b *Builder) (m map[message.OptionNumber]func() []message.Option) {
+	m = map[message.OptionNumber]func() []message.Option{
 		0:                                 nil,
 		message.OptionNumberIfMatch:       b.addOptionIfMatch,
 		message.OptionNumberURIHost:       b.addOptionUriHost,
@@ -146,7 +168,7 @@ func (s *Builder) WithRegister(reg int) *Builder {
 	return s
 }
 
-func (s *Builder) WithMessageOptions(options ...message.Opt) *Builder {
+func (s *Builder) WithMessageOptions(options ...message.Option) *Builder {
 	for _, o := range options {
 		if o != nil {
 			s.msg.Options = append(s.msg.Options, o)
@@ -182,7 +204,7 @@ func (s *Builder) WithToken(token uint64) *Builder {
 	return s
 }
 
-// WithURIPath needs WithURI() / WithURI2() first.
+// WithURIPath needs WithURI() / WithURI2() / NewBase() first.
 //
 // Sample:
 //     builder.WithURIString("coap://coap.me/large")...Build()

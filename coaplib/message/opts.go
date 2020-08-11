@@ -100,17 +100,11 @@ type anyOpt struct {
 }
 
 func (s *anyOpt) Number() OptionNumber { return s.Type }
+func (s *anyOpt) Bytes() []byte        { return s.Data }
+func (s *anyOpt) SetBytes(data []byte) { s.Data = data }
 
 func (s *anyOpt) String() string {
 	return fmt.Sprintf("[%s: [% x]]", s.Type, s.Data)
-}
-
-func (s *anyOpt) Bytes() []byte {
-	return s.Data
-}
-
-func (s *anyOpt) SetBytes(data []byte) {
-	s.Data = data
 }
 
 //
@@ -132,24 +126,18 @@ type stringOpt struct {
 }
 
 func (s *stringOpt) Number() OptionNumber { return s.Type }
+func (s *stringOpt) Bytes() []byte        { return []byte(s.Data) }
+func (s *stringOpt) StringData() string   { return s.Data }
 
 func (s *stringOpt) String() string {
 	return fmt.Sprintf("[%s: %q]", s.Type, s.Data)
 }
 
-func (s *stringOpt) Bytes() []byte {
-	return []byte(s.Data)
-}
-
-func (s *stringOpt) StringData() string {
-	return s.Data
-}
-
 //
 //
 //
 
-func NewUint64Opt(optType OptionNumber, data uint64) Opt {
+func NewUint64Opt(optType OptionNumber, data uint64) Option {
 	return &optUint64{
 		Type: optType,
 		Data: data,
@@ -163,6 +151,7 @@ type optUint64 struct {
 }
 
 func (s *optUint64) Number() OptionNumber { return s.Type }
+func (s *optUint64) Uint64Data() uint64   { return s.Data }
 
 func (s *optUint64) Bytes() []byte {
 	var bb bytes.Buffer
@@ -178,18 +167,14 @@ func (s *optUint64) Bytes() []byte {
 }
 
 func (s *optUint64) String() string {
-	return fmt.Sprintf("Number=%08X", s.Data)
-}
-
-func (s *optUint64) Uint64Data() uint64 {
-	return s.Data
+	return fmt.Sprintf("[%v: %d/0x%08X]", s.Type, s.Data, s.Data)
 }
 
 //
 //
 //
 
-func NewOptBlockNForDecoding(N int, data []byte) Opt {
+func NewOptBlockNForDecoding(N int, data []byte) Option {
 	var num uint64
 	var more bool
 	if len(data) > 1 {
@@ -228,9 +213,7 @@ func (s *OptBlockN) Number() OptionNumber {
 	return OptionNumberBlock2
 }
 
-func (s *OptBlockN) SizeInBytes() int {
-	return 1 << (s.Szx + 4)
-}
+func (s *OptBlockN) SizeInBytes() int { return 1 << (s.Szx + 4) }
 
 func (s *OptBlockN) Bytes() []byte {
 	var bb bytes.Buffer
@@ -246,27 +229,25 @@ func (s *OptBlockN) Bytes() []byte {
 }
 
 func (s *OptBlockN) String() string {
-	return fmt.Sprintf("Block%d#%d,szx=%v,more=%v", s.N, s.Num, 1<<(4+s.Szx), s.More)
+	return fmt.Sprintf("[Block%d #%d: szx=%v,more=%v]", s.N, s.Num, 1<<(4+s.Szx), s.More)
 }
 
 //
 //
 //
 
-func NewOptETag(eTag uint64) Opt {
-	return &optETag{ETag: eTag}
+func NewOptETag(optNum OptionNumber, eTag uint64) Option {
+	return &optETag{Type: optNum, ETag: eTag}
 }
 
 type optETag struct {
 	optBase
+	Type OptionNumber
 	ETag uint64
 }
 
-func (s *optETag) Uint64Data() uint64 {
-	return s.ETag
-}
-
-func (s *optETag) Number() OptionNumber { return OptionNumberETag }
+func (s *optETag) Uint64Data() uint64   { return s.ETag }
+func (s *optETag) Number() OptionNumber { return s.Type }
 
 func (s *optETag) Bytes() []byte {
 	var bb bytes.Buffer
@@ -282,29 +263,25 @@ func (s *optETag) Bytes() []byte {
 }
 
 func (s *optETag) String() string {
-	return fmt.Sprintf("ETag=%08X", s.ETag)
+	return fmt.Sprintf("[%v: %08X]", s.Type, s.ETag)
 }
 
 //
 //
 //
 
-func NewOptMediaType(mt MediaType) Opt {
-	return &optMediaType{MediaType: mt}
+func NewOptMediaType(optNum OptionNumber, mt MediaType) Option {
+	return &optMediaType{Type: optNum, MediaType: mt}
 }
 
 type optMediaType struct {
 	optBase
+	Type OptionNumber
 	MediaType
 }
 
-func (s *optMediaType) MediaTypeData() MediaType {
-	return s.MediaType
-}
-
-func (s *optMediaType) Number() OptionNumber {
-	return OptionNumberContentFormat
-}
+func (s *optMediaType) MediaTypeData() MediaType { return s.MediaType }
+func (s *optMediaType) Number() OptionNumber     { return s.Type }
 
 func (s *optMediaType) Bytes() []byte {
 	var bb bytes.Buffer
@@ -320,7 +297,7 @@ func (s *optMediaType) Bytes() []byte {
 }
 
 func (s *optMediaType) String() string {
-	return fmt.Sprintf("%q", s.MediaType.String())
+	return fmt.Sprintf("[%v: %q]", s.Type, s.MediaType.String())
 }
 
 //

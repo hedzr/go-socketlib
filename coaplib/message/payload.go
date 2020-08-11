@@ -22,7 +22,7 @@ func NewPayloadWith(data []byte, contentFormat MediaType) Payload {
 	return s
 }
 
-func payloadCreate(data []byte, startPosition int, mt MediaType, options []Opt) (p Payload) {
+func payloadCreate(data []byte, startPosition int, mt MediaType, options []Option) (p Payload) {
 	if startPosition < len(data) {
 		switch mt {
 		case AppLinkFormat: // rfc6690

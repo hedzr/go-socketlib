@@ -30,7 +30,7 @@ type opOp struct {
 	cod      message.Code
 	onAck    message.OnACKHandler
 	onEvent  message.OnEventHandler
-	opts     []message.Opt
+	opts     []message.Option
 	postData []byte
 	reg      int
 	token    uint64

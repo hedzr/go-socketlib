@@ -5,7 +5,8 @@ import (
 	"io"
 )
 
-type Opt interface {
+// Option represents a CoAP Option.
+type Option interface {
 	Number() OptionNumber
 	Bytes() []byte
 	fmt.Stringer
@@ -15,7 +16,7 @@ type Opt interface {
 }
 
 type optionDecoder struct {
-	decoders map[OptionNumber]func(optNum OptionNumber, data []byte) Opt
+	decoders map[OptionNumber]func(optNum OptionNumber, data []byte) Option
 	err      error
 }
 
@@ -23,7 +24,7 @@ func (s *optionDecoder) Error() error {
 	return s.err
 }
 
-func (s *optionDecoder) Decode(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) Decode(optNum OptionNumber, data []byte) (opt Option) {
 	if s.decoders != nil {
 		if d, ok := s.decoders[optNum]; ok {
 			opt = d(optNum, data)
@@ -35,104 +36,110 @@ func (s *optionDecoder) Decode(optNum OptionNumber, data []byte) (opt Opt) {
 	return
 }
 
-func (s *optionDecoder) decodeOptionIfMatch(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
-	return
-}
-
-func (s *optionDecoder) decodeOptionUriHost(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
-	return
-}
-
-func (s *optionDecoder) decodeOptionETag(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionIfMatch(optNum OptionNumber, data []byte) (opt Option) {
 	var eTag = decodeUint64(data)
-	opt = NewOptETag(eTag)
+	opt = NewOptETag(optNum, eTag)
+	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionIfNoneMatch(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionUriHost(optNum OptionNumber, data []byte) (opt Option) {
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionObserve(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionETag(optNum OptionNumber, data []byte) (opt Option) {
+	var eTag = decodeUint64(data)
+	opt = NewOptETag(optNum, eTag)
+	return
+}
+
+func (s *optionDecoder) decodeOptionIfNoneMatch(optNum OptionNumber, data []byte) (opt Option) {
+	var eTag = decodeUint64(data)
+	opt = NewOptETag(optNum, eTag)
+	// opt = NewAnyOpt(optNum, data)
+	return
+}
+
+func (s *optionDecoder) decodeOptionObserve(optNum OptionNumber, data []byte) (opt Option) {
 	n := decodeUint64(data)
 	opt = NewUint64Opt(optNum, n)
 	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionUriPort(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionUriPort(optNum OptionNumber, data []byte) (opt Option) {
 	opt = NewAnyOpt(optNum, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionLocationPath(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionLocationPath(optNum OptionNumber, data []byte) (opt Option) {
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionUriPath(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionUriPath(optNum OptionNumber, data []byte) (opt Option) {
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionContentFormat(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionContentFormat(optNum OptionNumber, data []byte) (opt Option) {
 	n := decodeUint64(data)
-	opt = NewOptMediaType(MediaType(n))
+	opt = NewOptMediaType(optNum, MediaType(n))
 	return
 }
 
-func (s *optionDecoder) decodeOptionMaxAge(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionMaxAge(optNum OptionNumber, data []byte) (opt Option) {
 	n := decodeUint64(data)
 	opt = NewUint64Opt(optNum, n)
 	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionUriQuery(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionUriQuery(optNum OptionNumber, data []byte) (opt Option) {
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionAccept(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionAccept(optNum OptionNumber, data []byte) (opt Option) {
+	n := decodeUint64(data)
+	opt = NewOptMediaType(optNum, MediaType(n))
+	// opt = NewAnyOpt(optNum, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionLocationQuery(optNum OptionNumber, data []byte) (opt Opt) {
-	opt = NewAnyOpt(optNum, data)
+func (s *optionDecoder) decodeOptionLocationQuery(optNum OptionNumber, data []byte) (opt Option) {
+	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionBlock2(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionBlock2(optNum OptionNumber, data []byte) (opt Option) {
 	opt = NewOptBlockNForDecoding(2, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionBlock1(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionBlock1(optNum OptionNumber, data []byte) (opt Option) {
 	opt = NewOptBlockNForDecoding(1, data)
 	return
 }
 
-func (s *optionDecoder) decodeOptionSize2(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionSize2(optNum OptionNumber, data []byte) (opt Option) {
 	n := decodeUint64(data)
 	opt = NewUint64Opt(optNum, n)
 	return
 }
 
-func (s *optionDecoder) decodeOptionProxyUri(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionProxyUri(optNum OptionNumber, data []byte) (opt Option) {
 	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionProxyScheme(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionProxyScheme(optNum OptionNumber, data []byte) (opt Option) {
 	opt = NewStringOpt(optNum, string(data))
 	return
 }
 
-func (s *optionDecoder) decodeOptionSize1(optNum OptionNumber, data []byte) (opt Opt) {
+func (s *optionDecoder) decodeOptionSize1(optNum OptionNumber, data []byte) (opt Option) {
 	n := decodeUint64(data)
 	opt = NewUint64Opt(optNum, n)
 	return

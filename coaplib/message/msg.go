@@ -19,7 +19,7 @@ type Message struct {
 	Code      Code
 	MessageID uint16
 	Token     uint64
-	Options   []Opt
+	Options   []Option
 	Payload   Payload
 	err       error
 	ts        time.Time
@@ -35,12 +35,12 @@ type Message struct {
 type OnACKHandler func(ctx context.Context, sent, recv *Message) (err error)
 type OnEventHandler func(ctx context.Context, key string, token uint64, recv *Message)
 
-func (s *Message) FindOption(num OptionNumber) (opt Opt) {
+func (s *Message) FindOption(num OptionNumber) (opt Option) {
 	opt = FindOption(num, s.Options)
 	return
 }
 
-func (s *Message) FindOptions(num OptionNumber) (opt []Opt) {
+func (s *Message) FindOptions(num OptionNumber) (opt []Option) {
 	opt = FindOptions(num, s.Options)
 	return
 }
@@ -216,15 +216,15 @@ func (s *Message) String() string {
 	//for i,opt:=range s.Options
 	//sb.WriteRune(']')
 
-	l := 0
+	l, p := 0, ""
 	if s.Payload != nil {
-		l = s.Payload.Size()
+		l, p = s.Payload.Size(), string(s.Payload.Bytes())
 	}
 
 	return fmt.Sprintf("Type: %v, TKL: %v, Code: %v, MsgID: %04x/%d, Token: %x. Options: %v. Payload (%d bytes): |%s|",
 		s.Type, s.TKL, s.Code, s.MessageID, s.MessageID, s.Token,
 		s.Options,
-		l, s.Payload)
+		l, p)
 }
 
 func (s *Message) Href() string {

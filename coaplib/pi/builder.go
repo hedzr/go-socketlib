@@ -22,7 +22,7 @@ type Builder struct {
 	blocks2              []message.Block
 	lastBlockNum         int
 	err                  error
-	optionProcMap        map[message.OptionNumber]func() []message.Opt
+	optionProcMap        map[message.OptionNumber]func() []message.Option
 	optNum               message.OptionNumber
 	//lastOptNum           message.OptionNumber
 }
@@ -56,7 +56,7 @@ func (s *Builder) Build() (out *message.Message) {
 	return
 }
 
-func (s *Builder) addOptionUint64(optNum message.OptionNumber, i uint64) (opt message.Opt) {
+func (s *Builder) addOptionUint64(optNum message.OptionNumber, i uint64) (opt message.Option) {
 	if i >= 0 {
 		opt = message.NewUint64Opt(optNum, i)
 
@@ -84,7 +84,7 @@ func (s *Builder) addOptionUint64(optNum message.OptionNumber, i uint64) (opt me
 	return
 }
 
-func (s *Builder) addOptionString(str string) (opt message.Opt) {
+func (s *Builder) addOptionString(str string) (opt message.Option) {
 	if len(str) > 0 {
 		opt = message.NewStringOpt(s.optNum, str)
 	}
@@ -122,14 +122,14 @@ func (s *Builder) addOptionString(str string) (opt message.Opt) {
 	//return
 }
 
-func (s *Builder) addOptionIfMatch() (opt []message.Opt) {
+func (s *Builder) addOptionIfMatch() (opt []message.Option) {
 	if s.ifMatch > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, s.ifMatch))
 	}
 	return
 }
 
-func (s *Builder) addOptionUriHost() (opt []message.Opt) {
+func (s *Builder) addOptionUriHost() (opt []message.Option) {
 	if s.uri == nil {
 		return
 	}
@@ -137,21 +137,21 @@ func (s *Builder) addOptionUriHost() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) addOptionETag() (opt []message.Opt) {
+func (s *Builder) addOptionETag() (opt []message.Option) {
 	if s.eTag > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, s.eTag))
 	}
 	return
 }
 
-func (s *Builder) addOptionIfNoneMatch() (opt []message.Opt) {
+func (s *Builder) addOptionIfNoneMatch() (opt []message.Option) {
 	if s.ifNoneMatch > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, s.ifNoneMatch))
 	}
 	return
 }
 
-func (s *Builder) addOptionUriPort() (opt []message.Opt) {
+func (s *Builder) addOptionUriPort() (opt []message.Option) {
 	if s.uri == nil {
 		return
 	}
@@ -161,14 +161,14 @@ func (s *Builder) addOptionUriPort() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) addOptionLocationPath() (opt []message.Opt) {
+func (s *Builder) addOptionLocationPath() (opt []message.Option) {
 	if len(s.locationPath) > 0 {
 		opt = append(opt, s.addOptionString(s.locationPath))
 	}
 	return
 }
 
-func (s *Builder) addOptionUriPath() (opt []message.Opt) {
+func (s *Builder) addOptionUriPath() (opt []message.Option) {
 	if s.uri == nil {
 		return
 	}
@@ -179,21 +179,21 @@ func (s *Builder) addOptionUriPath() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) addOptionContentFormat() (opt []message.Opt) {
+func (s *Builder) addOptionContentFormat() (opt []message.Option) {
 	if s.msg.Payload != nil {
 		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.msg.Payload.ContentFormat())))
 	}
 	return
 }
 
-func (s *Builder) addOptionMaxAge() (opt []message.Opt) {
+func (s *Builder) addOptionMaxAge() (opt []message.Option) {
 	if s.maxAge != 60 && s.maxAge > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.maxAge)))
 	}
 	return
 }
 
-func (s *Builder) addOptionUriQuery() (opt []message.Opt) {
+func (s *Builder) addOptionUriQuery() (opt []message.Option) {
 	if s.uri == nil {
 		return
 	}
@@ -207,14 +207,14 @@ func (s *Builder) addOptionUriQuery() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) addOptionAccept() (opt []message.Opt) {
+func (s *Builder) addOptionAccept() (opt []message.Option) {
 	if s.accept != message.MediaTypeUndefined {
 		opt = append(opt, s.addOptionUint64(s.optNum, uint64(s.accept)))
 	}
 	return
 }
 
-func (s *Builder) addOptionLocationQuery() (opt []message.Opt) {
+func (s *Builder) addOptionLocationQuery() (opt []message.Option) {
 	if len(s.locationQuery) > 0 {
 		values, err := url.ParseQuery(s.locationQuery)
 		if err == nil {
@@ -229,35 +229,35 @@ func (s *Builder) addOptionLocationQuery() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) addOptionProxyUri() (opt []message.Opt) {
+func (s *Builder) addOptionProxyUri() (opt []message.Option) {
 	if len(s.proxyURI) > 0 {
 		opt = append(opt, s.addOptionString(s.proxyURI))
 	}
 	return
 }
 
-func (s *Builder) addOptionProxyScheme() (opt []message.Opt) {
+func (s *Builder) addOptionProxyScheme() (opt []message.Option) {
 	if len(s.proxyScheme) > 0 {
 		opt = append(opt, s.addOptionString(s.proxyScheme))
 	}
 	return
 }
 
-func (s *Builder) addOptionSize1() (opt []message.Opt) {
+func (s *Builder) addOptionSize1() (opt []message.Option) {
 	if s.size1 > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, s.size1))
 	}
 	return
 }
 
-func (s *Builder) addOptionSize2() (opt []message.Opt) {
+func (s *Builder) addOptionSize2() (opt []message.Option) {
 	if s.size2 > 0 {
 		opt = append(opt, s.addOptionUint64(s.optNum, s.size2))
 	}
 	return
 }
 
-func (s *Builder) addOptionBlock1() (opt []message.Opt) {
+func (s *Builder) addOptionBlock1() (opt []message.Option) {
 	if s.lastBlockNum < len(s.blocks1) {
 		blockNum := s.lastBlockNum
 		s.lastBlockNum++
@@ -280,7 +280,7 @@ func (s *Builder) addOptionBlock1() (opt []message.Opt) {
 	return
 }
 
-//func (s *Builder) setBlock1ToPayload() (opt message.Opt) {
+//func (s *Builder) setBlock1ToPayload() (opt message.Option) {
 //	if s.lastBlockNum < len(s.blocks) {
 //		blockNum, hasMore := s.lastBlockNum, byte(0)
 //
@@ -305,7 +305,7 @@ func (s *Builder) addOptionBlock1() (opt []message.Opt) {
 //	return
 //}
 
-func (s *Builder) setBlock2ToOptions() (opt []message.Opt) {
+func (s *Builder) setBlock2ToOptions() (opt []message.Option) {
 	//opt = s.addOptionUint64(uint64(s.size2))
 	for _, block := range s.blocks2 {
 		//length := block.Size()
@@ -325,7 +325,7 @@ func (s *Builder) setBlock2ToOptions() (opt []message.Opt) {
 	return
 }
 
-func (s *Builder) blocksToOptions(blocks []message.Block, optNum message.OptionNumber) (opt []message.Opt) {
+func (s *Builder) blocksToOptions(blocks []message.Block, optNum message.OptionNumber) (opt []message.Option) {
 	//opt = s.addOptionUint64(uint64(s.size2))
 	for _, block := range blocks {
 		o := s.blockToOption(block, optNum)
@@ -334,7 +334,7 @@ func (s *Builder) blocksToOptions(blocks []message.Block, optNum message.OptionN
 	return
 }
 
-func (s *Builder) blockToOption(block message.Block, optNum message.OptionNumber) (opt message.Opt) {
+func (s *Builder) blockToOption(block message.Block, optNum message.OptionNumber) (opt message.Option) {
 	//length := block.Size()
 	//delta := s.optNum - s.lastOptNum
 	//
