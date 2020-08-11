@@ -26,6 +26,10 @@ type ciWrapper struct {
 	ci protocol.ClientInterceptor
 }
 
+func (s *ciWrapper) OnListened(ctx context.Context, c base.Conn) {
+	// s.ci.OnListened(ctx, c)
+}
+
 func (s *ciWrapper) OnServerReady(ctx context.Context, server log.Logger) {
 	panic("implement me")
 }

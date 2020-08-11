@@ -100,15 +100,15 @@ func (s *Obj) isUDP() bool {
 	return strings.HasPrefix(s.netType, "udp")
 }
 
-func (s *Obj) createUDPListener(config *base.Config) (err error) {
+func (s *Obj) createUDPListener(baseCtx context.Context, config *base.Config) (err error) {
 	if s.udpConn == nil {
 		s.udpConn = udp.New(s, nil, nil)
 	}
-	err = s.udpConn.Create(s.netType, config)
+	err = s.udpConn.Create(baseCtx, s.netType, config)
 	return
 }
 
-func (s *Obj) createListener(config *base.Config) (tlsEnabled bool, err error) {
+func (s *Obj) createListener(baseCtx context.Context, config *base.Config) (tlsEnabled bool, err error) {
 	// var listener net.Listener
 	// var tlsEnabled bool
 	s.listener, tlsEnabled, err = s.serverBuildListener(config.Addr, config.PrefixInConfigFile, config.PrefixInCommandLine)

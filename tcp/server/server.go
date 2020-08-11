@@ -43,26 +43,28 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 		config.Logger.Fatalf("%v", err)
 	}
 
+	baseCtx := context.Background()
+
 	switch so.isUDP() {
 	case true:
-		err = so.createUDPListener(config)
+		err = so.createUDPListener(baseCtx, config)
 		if err != nil {
 			so.Fatalf("build UDP listener failed: %v", err)
 		}
 
-		if err = so.pfs.Create(); err != nil {
+		if err = so.pfs.Create(baseCtx); err != nil {
 			so.Fatalf("failed to create pid file: %v", err)
 		} else {
 			so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
 		}
 
 	default:
-		tlsEnabled, err = so.createListener(config)
+		tlsEnabled, err = so.createListener(baseCtx, config)
 		if err != nil {
 			so.Fatalf("build listener failed: %v", err)
 		}
 
-		if err = so.pfs.Create(); err != nil {
+		if err = so.pfs.Create(baseCtx); err != nil {
 			so.Fatalf("failed to create pid file: %v", err)
 		} else {
 			so.Infof("PID (%v) file created at: %v", os.Getpid(), so.pfs)
@@ -86,6 +88,7 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 		tlsEnabled bool
 		done       = make(chan bool, 1)
 	)
+
 	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
 	serve, so, tlsEnabled, err = newServer(config, opts...)
 	if err != nil {

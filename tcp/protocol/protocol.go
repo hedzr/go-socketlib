@@ -20,7 +20,8 @@ type ClientInterceptor interface {
 }
 
 type Interceptor interface {
-	OnServerReady(ctx context.Context, server log.Logger)
+	OnListened(ctx context.Context, c base.Conn)
+	OnServerReady(ctx context.Context, c log.Logger)
 	OnServerClosed(server log.Logger)
 
 	ClientInterceptor
