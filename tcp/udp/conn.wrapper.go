@@ -26,7 +26,10 @@ func (c *udpConnWrapper) RawWrite(ctx context.Context, message []byte) (n int, e
 }
 
 func (c *udpConnWrapper) String() string {
-	return c.conn.RemoteAddr().String()
+	if a := c.conn.RemoteAddr(); a != nil {
+		return a.String()
+	}
+	return c.conn.LocalAddr().String()
 }
 
 func (c *udpConnWrapper) RemoteAddr() net.Addr {

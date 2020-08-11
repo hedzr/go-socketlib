@@ -34,48 +34,6 @@ type Obj struct {
 	closed         int32
 }
 
-type Opt func(*Obj)
-
-func WithListenerNumber(n int) Opt {
-	return func(obj *Obj) {
-		obj.listenerNumber = n
-	}
-}
-
-func WithUDPConn(conn *net.UDPConn, addr *net.UDPAddr) Opt {
-	return func(obj *Obj) {
-		obj.conn, obj.addr = conn, addr
-	}
-}
-
-func New(so protocol.InterceptorHolder, opts ...Opt) (obj *Obj) {
-	if x := fast.New(DefaultPacketQueueSize,
-		fast.WithDebugMode(false),
-		fast.WithLogger(so.(log.Logger)),
-	); x != nil {
-		obj = &Obj{
-			Logger:            so.(log.Logger),
-			InterceptorHolder: so,
-			conn:              nil,
-			addr:              nil,
-			maxBufferSize:     DefaultPacketSize,
-			rb:                x,
-			debugMode:         false,
-			rdCh:              make(chan *base.UdpPacket, DefaultPacketQueueSize),
-			wrCh:              make(chan *base.UdpPacket, DefaultPacketQueueSize),
-			WriteTimeout:      10 * time.Second,
-		}
-	}
-
-	for _, opt := range opts {
-		if obj != nil && opt != nil {
-			opt(obj)
-		}
-	}
-
-	return
-}
-
 func (s *Obj) IsConnected() bool {
 	return s.baseConn != nil
 }
@@ -181,7 +139,7 @@ func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) 
 }
 
 // Create a server listener via net.ListenUDP()
-func (s *Obj) Create(network string, config *base.Config) (err error) {
+func (s *Obj) Create(baseCtx context.Context, network string, config *base.Config) (err error) {
 	//var udpConn *net.UDPConn
 	var sip, sport string
 	var port int
@@ -221,6 +179,11 @@ func (s *Obj) Create(network string, config *base.Config) (err error) {
 				if err == nil {
 					err = s.conn.SetReadBuffer(1048576)
 				}
+			}
+			if err == nil && s.conn != nil && s.ProtocolInterceptor() != nil {
+				s.baseConn = &udpConnWrapper{s, s.conn, s.Logger}
+				s.Tracef("Created OK: %v", config.Addr)
+				s.ProtocolInterceptor().OnListened(baseCtx, s.baseConn)
 			}
 		}
 	}
@@ -484,7 +447,7 @@ func (s *Obj) listener(baseCtx context.Context) {
 		// fmt.Println("from", remoteAddr, "-", buffer[:n])
 		sd := make([]byte, n)
 		copy(sd, buffer[:n])
-		s.Debugf("[udp.listener] #%-5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Tracef("[udp.listener] #%-5d : %v -> %v %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	retryPut:
 		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
 		if err != nil {
@@ -550,7 +513,7 @@ func (s *Obj) clientListener(baseCtx context.Context) {
 		// fmt.Println("from", remoteAddr, "-", buffer[:n])
 		sd := make([]byte, n)
 		copy(sd, buffer[:n])
-		s.Debugf("[udp.listener.client] #%-5d : %v -> % x %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
+		s.Tracef("[udp.listener.client] #%-5d : %v -> % x %q", baseCtx.Value("tid"), remoteAddr, sd, sd)
 	retryPut:
 		err = s.rb.Enqueue(base.NewUdpPacket(remoteAddr, sd))
 		if err != nil {
