@@ -27,11 +27,12 @@ type Obj struct {
 	prefix              string
 	uidConn             uint64
 	netType             string
+	config              *base.Config
 }
 
 type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) Connection
 
-func newServerObj() (s *Obj) {
+func newServerObj(config *base.Config) (s *Obj) {
 	s = &Obj{
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -41,11 +42,20 @@ func newServerObj() (s *Obj) {
 		exitCh:       make(chan struct{}),
 		newConnFunc:  newConnObj,
 		netType:      defaultNetType,
+		config:       config,
 	}
 	//if s.Logger == nil {
 	//	s.Logger = sugar.New("debug", false, true)
 	//}
 	return
+}
+
+func (s *Obj) BaseUri() string {
+	return s.config.UriBase
+}
+
+func (s *Obj) Config() *base.Config {
+	return s.config
 }
 
 func (s *Obj) SetLogger(l log.Logger) {

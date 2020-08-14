@@ -14,7 +14,7 @@ import (
 func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
 	// var logger log.Logger
 	// logger = build.New(config.LoggerConfig)
-	so = newServerObj()
+	so = newServerObj(config)
 
 	for _, opt := range opts {
 		opt(so)

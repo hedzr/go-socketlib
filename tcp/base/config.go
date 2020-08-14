@@ -103,6 +103,7 @@ func (c *Config) BuildServerAddr() (err error) {
 	//	}
 	//}
 	c.Addr = net.JoinHostPort(host, port)
+	c.UriBase = cmdr.GetStringRP(c.PrefixInConfigFile, "base-uri")
 	return
 }
 
