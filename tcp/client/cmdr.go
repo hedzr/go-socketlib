@@ -8,6 +8,7 @@ import (
 	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"os"
 	"time"
 )
@@ -33,6 +34,13 @@ func WithCmdrPort(port int) CmdrOpt {
 func WithCmdrPrefixPrefix(prefixPrefix string) CmdrOpt {
 	return func(b *builder) {
 		b.prefixPrefix = prefixPrefix
+	}
+}
+
+func WithCmdrClientProtocolInterceptor(fn protocol.ClientInterceptor) CmdrOpt {
+	return func(b *builder) {
+		picOpt := WithClientProtocolInterceptor(fn)
+		b.opts = append(b.opts, picOpt)
 	}
 }
 

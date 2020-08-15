@@ -8,8 +8,8 @@ import (
 	"github.com/hedzr/log"
 )
 
-func New(config *base.Config, opts ...Opt) (serve ServeFunc, err error) {
-	serve, _, _, err = newServer(config, opts...)
+func New(config *base.Config, opts ...Opt) (serve ServeFunc, obj *Obj, tlsEnabled bool, err error) {
+	serve, obj, tlsEnabled, err = newServer(config, opts...)
 	return
 }
 

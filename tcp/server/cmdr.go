@@ -92,12 +92,22 @@ func WithCmdrPort(port int) CmdrOpt {
 	}
 }
 
+func WithCmdrServerProtocolInterceptor(fn protocol.Interceptor) CmdrOpt {
+	return func(b *builder) {
+		pisOpt := WithServerProtocolInterceptor(fn)
+		b.opts = append(b.opts, pisOpt)
+	}
+}
+
 func WithCmdrServerOptions(opts ...Opt) CmdrOpt {
 	return func(b *builder) {
 		b.opts = append(b.opts, opts...)
 	}
 }
 
+// WithCmdrCommandAction allows a custom CommandAction of yours.
+// The default is DefaultLooper, it's enough in most cases.
+// But, if you want, write yours.
 func WithCmdrCommandAction(action CommandAction) CmdrOpt {
 	return func(b *builder) {
 		b.action = action

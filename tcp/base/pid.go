@@ -15,15 +15,22 @@ import (
 )
 
 func makePidFS(prefixInCommandLine, prefixInConfigFile, defaultDir string) *pidFileStruct {
+	var dPath string
 	if defaultDir == "" {
-		defaultDir = DefaultPidPathTemplate
+		dPath = DefaultPidPathTemplate
+	} else {
+		dPath = path.Join(defaultDir, "access.log")
 	}
-	var dir string
-	dir = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
-	if dir == "" {
-		dir = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
+
+	var str string
+	str = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
+	if str == "" {
+		str = cmdr.GetStringRP(prefixInCommandLine, "pid-path", "")
 	}
-	return newPidFile(dir)
+	if str == "" {
+		str = os.ExpandEnv(dPath)
+	}
+	return newPidFile(str)
 }
 
 func makePidFSFromDir(dir string) *pidFileStruct {

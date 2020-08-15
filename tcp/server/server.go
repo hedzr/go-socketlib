@@ -59,7 +59,7 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 		}
 
 	default:
-		tlsEnabled, err = so.createListener(baseCtx, config)
+		tlsEnabled, err = so.createListener(baseCtx)
 		if err != nil {
 			so.Fatalf("build listener failed: %v", err)
 		}

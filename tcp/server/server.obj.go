@@ -15,7 +15,9 @@ import (
 type Obj struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
+
 	log.Logger
+
 	listener            net.Listener
 	udpConn             *udp.Obj
 	connections         []*connectionObj
@@ -28,6 +30,7 @@ type Obj struct {
 	uidConn             uint64
 	netType             string
 	config              *base.Config
+	// tlsConfigInitializer tls2.Initializer
 }
 
 type NewConnectionFunc func(ctx context.Context, serverObj *Obj, conn net.Conn) Connection
@@ -62,12 +65,27 @@ func (s *Obj) SetLogger(l log.Logger) {
 	s.Logger = l
 }
 
+func (s *Obj) WithLogger(logger log.Logger) *Obj {
+	s.SetLogger(logger)
+	return s
+}
+
+//func (s *Obj) WithTlsConfigInitializer(fn func(config *tls2.CmdrTlsConfig)) *Obj {
+//	s.tlsConfigInitializer = fn
+//	return s
+//}
+
 func (s *Obj) ProtocolInterceptor() protocol.Interceptor {
 	return s.protocolInterceptor
 }
 
 func (s *Obj) SetProtocolInterceptor(pi protocol.Interceptor) {
 	s.protocolInterceptor = pi
+}
+
+func (s *Obj) WithProtocolInterceptor(pi protocol.Interceptor) *Obj {
+	s.protocolInterceptor = pi
+	return s
 }
 
 func (s *Obj) ListenTo(listener net.Listener) {
@@ -118,26 +136,27 @@ func (s *Obj) createUDPListener(baseCtx context.Context, config *base.Config) (e
 	return
 }
 
-func (s *Obj) createListener(baseCtx context.Context, config *base.Config) (tlsEnabled bool, err error) {
-	// var listener net.Listener
-	// var tlsEnabled bool
-	s.listener, tlsEnabled, err = s.serverBuildListener(config.Addr, config.PrefixInConfigFile, config.PrefixInCommandLine)
-	//if err != nil {
-	//	s.Fatalf("build listener failed: %v", err)
-	//}
+func (s *Obj) createListener(baseCtx context.Context) (tlsEnabled bool, err error) {
+	s.listener, tlsEnabled, err = s.serverBuildListener(baseCtx)
 	return
 }
 
-func (s *Obj) serverBuildListener(addr, prefixInConfigFile, prefixInCommandLine string) (listener net.Listener, tls bool, err error) {
+func (s *Obj) serverBuildListener(baseCtx context.Context) (listener net.Listener, tls bool, err error) {
 	var tlsListener net.Listener
 
-	listener, err = net.Listen(s.netType, addr)
+	listener, err = net.Listen(s.netType, s.config.Addr)
 	if err != nil {
 		s.Fatalf("error: %v", err)
 	}
 
-	ctcPrefix := prefixInConfigFile + ".tls"
-	ctc := tls2.NewCmdrTlsConfig(ctcPrefix, prefixInCommandLine)
+	var ctc *tls2.CmdrTlsConfig
+	if s.config.TlsConfigInitializer != nil {
+		ctc = tls2.NewTlsConfig(s.config.TlsConfigInitializer)
+	} else {
+		ctcPrefix := s.config.PrefixInConfigFile + ".tls"
+		ctc = tls2.NewCmdrTlsConfig(ctcPrefix, s.config.PrefixInCommandLine)
+	}
+
 	// s.Debugf("%v", ctc)
 	if ctc.Enabled {
 		tlsListener, err = ctc.NewTlsListener(listener)
@@ -145,6 +164,7 @@ func (s *Obj) serverBuildListener(addr, prefixInConfigFile, prefixInCommandLine 
 			s.Fatalf("error: %v", err)
 		}
 	}
+
 	if tlsListener != nil {
 		listener = tlsListener
 		tls = true
@@ -179,6 +199,7 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 		}
 
 	default:
+
 		for {
 			conn, e := s.listener.Accept()
 			if e != nil {

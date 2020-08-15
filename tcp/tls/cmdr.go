@@ -18,6 +18,16 @@ import (
 	"time"
 )
 
+func NewTlsConfig(fn func(config *CmdrTlsConfig)) *CmdrTlsConfig {
+	s := &CmdrTlsConfig{
+		DialTimeout: 10 * time.Second,
+	}
+	if fn != nil {
+		fn(s)
+	}
+	return s
+}
+
 func NewCmdrTlsConfig(prefixInConfigFile, prefixInCommandline string) *CmdrTlsConfig {
 	s := &CmdrTlsConfig{
 		DialTimeout: 10 * time.Second,
@@ -29,22 +39,6 @@ func NewCmdrTlsConfig(prefixInConfigFile, prefixInCommandline string) *CmdrTlsCo
 		s.InitTlsConfigFromCommandline(prefixInCommandline)
 	}
 	return s
-}
-
-// CmdrTlsConfig wraps the certificates.
-// For server-side, the `Cert` field must be a bundle of server certificates with all root CAs chain.
-// For server-side, the `Cacert` is optional for extra client CA's.
-type CmdrTlsConfig struct {
-	Enabled            bool   // Both
-	Cacert             string // server-side: optional server's CA;   client-side: client's CA
-	ServerCert         string //                                      client-side: the server's cert
-	Cert               string // server-side: server's cert bundle;   client-side: client's cert
-	Key                string // server-side: server's key;           client-side: client's key
-	ClientAuth         bool   // Both
-	InsecureSkipVerify bool   // client-side only
-	MinTlsVersion      uint16 // Both
-	DialTimeout        time.Duration
-	logger             log.Logger
 }
 
 func (s *CmdrTlsConfig) WithLogger(logger log.Logger) *CmdrTlsConfig {
@@ -60,7 +54,7 @@ func (s *CmdrTlsConfig) String() string {
 	sb.WriteString("[CmdrTlsConfig: ")
 	sb.WriteString(fmt.Sprintf("Enabled: %v", s.Enabled))
 	if s.Enabled {
-		sb.WriteString(fmt.Sprintf(", CA cert: %v", s.Cacert))
+		sb.WriteString(fmt.Sprintf(", CA cert: %v", s.CaCert))
 		sb.WriteString(fmt.Sprintf(", Server cert (client-side): %v", s.ServerCert))
 		sb.WriteString(fmt.Sprintf(", Server cert bundle/Client cert: %v", s.Cert))
 		sb.WriteString(fmt.Sprintf(", Server/Client key: %v", s.Key))
@@ -72,7 +66,7 @@ func (s *CmdrTlsConfig) String() string {
 }
 
 func (s *CmdrTlsConfig) IsServerCertValid() bool {
-	return s.ServerCert != "" || s.Cacert != ""
+	return s.ServerCert != "" || s.CaCert != ""
 }
 
 func (s *CmdrTlsConfig) IsCertValid() bool {
@@ -98,7 +92,7 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	}
 	sz = cmdr.GetStringRP(prefix, "cacert")
 	if sz != "" {
-		s.Cacert = sz
+		s.CaCert = sz
 	}
 	sz = cmdr.GetStringRP(prefix, "cert")
 	if sz != "" {
@@ -118,9 +112,9 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	}
 
 	for _, loc := range cmdr.GetStringSliceRP(prefix, "locations", "./ci/certs", "$CFG_DIR/certs") {
-		if s.Cacert != "" && cmdr.FileExists(path.Join(loc, s.Cacert)) {
-			s.Cacert = path.Join(loc, s.Cacert)
-		} else if s.Cacert != "" {
+		if s.CaCert != "" && cmdr.FileExists(path.Join(loc, s.CaCert)) {
+			s.CaCert = path.Join(loc, s.CaCert)
+		} else if s.CaCert != "" {
 			continue
 		}
 		if s.ServerCert != "" && cmdr.FileExists(path.Join(loc, s.ServerCert)) {
@@ -163,14 +157,14 @@ func (s *CmdrTlsConfig) InitTlsConfigFromConfigFile(prefix string) {
 	s.Enabled = cmdr.GetBoolRP(prefix, "enabled")
 	if s.Enabled {
 		s.ClientAuth = cmdr.GetBoolRP(prefix, "client-auth")
-		s.Cacert = cmdr.GetStringRP(prefix, "cacert")
+		s.CaCert = cmdr.GetStringRP(prefix, "cacert")
 		s.Cert = cmdr.GetStringRP(prefix, "cert")
 		s.Key = cmdr.GetStringRP(prefix, "key")
 
 		for _, loc := range cmdr.GetStringSliceRP(prefix, "locations") {
-			if s.Cacert != "" && cmdr.FileExists(path.Join(loc, s.Cacert)) {
-				s.Cacert = path.Join(loc, s.Cacert)
-			} else if s.Cacert != "" {
+			if s.CaCert != "" && cmdr.FileExists(path.Join(loc, s.CaCert)) {
+				s.CaCert = path.Join(loc, s.CaCert)
+			} else if s.CaCert != "" {
 				continue
 			}
 			if s.Cert != "" && cmdr.FileExists(path.Join(loc, s.Cert)) {
@@ -203,14 +197,14 @@ func (s *CmdrTlsConfig) ToServerTlsConfig() (config *tls.Config) {
 	var err error
 	config, err = s.newTlsConfig()
 	if err == nil {
-		if s.Cacert != "" {
+		if s.CaCert != "" {
 			var rootPEM []byte
-			rootPEM, err = ioutil.ReadFile(s.Cacert)
+			rootPEM, err = ioutil.ReadFile(s.CaCert)
 			if err != nil || rootPEM == nil {
 				return
 			}
 			pool := x509.NewCertPool()
-			ok := pool.AppendCertsFromPEM([]byte(rootPEM))
+			ok := pool.AppendCertsFromPEM(rootPEM)
 			if ok {
 				config.ClientCAs = pool
 			}
@@ -251,14 +245,14 @@ func (s *CmdrTlsConfig) newTlsConfig() (config *tls.Config, err error) {
 
 	// Add in CAs if applicable.
 	if s.ClientAuth {
-		if s.Cacert != "" {
+		if s.CaCert != "" {
 			var rootPEM []byte
-			rootPEM, err = ioutil.ReadFile(s.Cacert)
+			rootPEM, err = ioutil.ReadFile(s.CaCert)
 			if err != nil || rootPEM == nil {
 				return nil, err
 			}
 			pool := x509.NewCertPool()
-			ok := pool.AppendCertsFromPEM([]byte(rootPEM))
+			ok := pool.AppendCertsFromPEM(rootPEM)
 			if !ok {
 				err = errors.New("failed to parse root ca certificate")
 			}
@@ -303,7 +297,7 @@ func (s *CmdrTlsConfig) Dial(network, addr string) (conn net.Conn, err error) {
 		if err != nil {
 			return
 		}
-		err = s.addCert(roots, s.Cacert)
+		err = s.addCert(roots, s.CaCert)
 		if err != nil {
 			return
 		}

@@ -3,6 +3,7 @@ package base
 import (
 	"fmt"
 	"github.com/hedzr/cmdr"
+	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 	"gopkg.in/hedzr/errors.v2"
@@ -25,7 +26,8 @@ type Config struct {
 	PrefixInConfigFile  string
 	PidDir              string
 
-	Network string
+	Network              string
+	TlsConfigInitializer tls2.Initializer
 }
 
 const defaultNetType = "tcp"
@@ -39,10 +41,10 @@ func NewConfigFromCmdrCommand(isServer bool, prefixPrefix string, cmd *cmdr.Comm
 
 	loggerConfig := cmdr.NewLoggerConfig()
 
-	return NewConfigWithParams(true, netType, prefixPrefix, prefixCLI, loggerConfig)
+	return NewConfigWithParams(isServer, netType, prefixPrefix, prefixCLI, loggerConfig, nil)
 }
 
-func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string, loggerConfig *log.LoggerConfig) *Config {
+func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string, loggerConfig *log.LoggerConfig, tlsConfigInitializer tls2.Initializer) *Config {
 	s := "client"
 	if isServer {
 		s = "server"
@@ -58,13 +60,14 @@ func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string,
 	}
 
 	return &Config{
-		Addr:                "",
-		Adapter:             "",
-		LoggerConfig:        loggerConfig,
-		PrefixInCommandLine: prefixCLI,
-		PrefixInConfigFile:  prefix,
-		PidDir:              DefaultPidDirTemplate,
-		Network:             netType,
+		Addr:                 "",
+		Adapter:              "",
+		LoggerConfig:         loggerConfig,
+		PrefixInCommandLine:  prefixCLI,
+		PrefixInConfigFile:   prefix,
+		PidDir:               DefaultPidDirTemplate,
+		Network:              netType,
+		TlsConfigInitializer: tlsConfigInitializer,
 	}
 }
 

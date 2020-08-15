@@ -30,8 +30,14 @@ func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error
 	var conn net.Conn
 	var done = make(chan bool, 1)
 	var tid = 1
+	var ctc *tls2.CmdrTlsConfig
+	if config.TlsConfigInitializer != nil {
+		ctc = tls2.NewTlsConfig(config.TlsConfigInitializer)
+	} else {
+		ctcPrefix := config.PrefixInConfigFile + ".tls"
+		ctc = tls2.NewCmdrTlsConfig(ctcPrefix, config.PrefixInCommandLine)
+	}
 
-	ctc := tls2.NewCmdrTlsConfig(config.PrefixInConfigFile+".tls", config.PrefixInCommandLine)
 	conn, err = ctc.Dial(config.Network, config.Addr)
 
 	if err != nil {
