@@ -48,6 +48,10 @@ func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string,
 		s = "server"
 	}
 
+	if prefixPrefix == "" {
+		prefixPrefix = "tcp"
+	}
+
 	prefix := strings.Join([]string{prefixPrefix, s}, ".")
 	if prefixCLI == "" {
 		prefixCLI = strings.Join([]string{prefixPrefix, s}, ".")
@@ -85,6 +89,7 @@ func (c *Config) BuildServerAddr() (err error) {
 	}
 	host, port, err = net.SplitHostPort(c.Addr)
 	if port == "" || port == "0" {
+		err = nil
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
 	}
 	if port == "0" {
@@ -118,10 +123,11 @@ func (c *Config) BuildAddr() (err error) {
 	c.UriBase = c.Addr
 	host, port, err = net.SplitHostPort(c.Addr)
 	if port == "" || port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
+		err = nil
+		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInCommandLine, "port", 1024), 10)
 	}
 	if port == "0" {
-		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInCommandLine, "port", 1024), 10)
+		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInConfigFile, "ports.default"), 10)
 		if port == "0" {
 			err = errors.New("invalid port number: %q", port)
 			return
