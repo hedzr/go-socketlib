@@ -41,10 +41,10 @@ func NewConfigFromCmdrCommand(isServer bool, prefixPrefix string, cmd *cmdr.Comm
 
 	loggerConfig := cmdr.NewLoggerConfig()
 
-	return NewConfigWithParams(isServer, netType, prefixPrefix, prefixCLI, loggerConfig, nil)
+	return NewConfigWithParams(isServer, netType, prefixPrefix, prefixCLI, loggerConfig, nil, "", "", "")
 }
 
-func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string, loggerConfig *log.LoggerConfig, tlsConfigInitializer tls2.Initializer) *Config {
+func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string, loggerConfig *log.LoggerConfig, tlsConfigInitializer tls2.Initializer, addr, uriBase, adapter string) *Config {
 	s := "client"
 	if isServer {
 		s = "server"
@@ -60,8 +60,9 @@ func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string,
 	}
 
 	return &Config{
-		Addr:                 "",
-		Adapter:              "",
+		Addr:                 addr,
+		Adapter:              adapter,
+		UriBase:              uriBase,
 		LoggerConfig:         loggerConfig,
 		PrefixInCommandLine:  prefixCLI,
 		PrefixInConfigFile:   prefix,

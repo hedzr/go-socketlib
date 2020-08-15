@@ -11,20 +11,27 @@ import (
 
 func main() {
 
+	// app-name, these component need it: pid-file, log-file, ...
 	_ = os.Setenv("APPNAME", "std-server")
 
-	lc := log.NewLoggerConfig()
+	// default is zap sugar logger
+	logConfig := log.NewLoggerConfig()
+	logConfig.Backend = "logrus" // zap, sugar, std, off/dummy/none
 
-	config := base.NewConfigWithParams(true, "tcp",
-		"tcp",
-		"",
-		lc,
-		func(config *tls2.CmdrTlsConfig) {
-			config.Cert = "unknown"
+	var ignoredKey, ignoredAdapterName string
+	config := base.NewConfigWithParams(true,
+		"tcp",      // tcp, udp, or unix
+		ignoredKey, // ignore safely because you give up from cmdr
+		ignoredKey, // ignore safely because you give up from cmdr
+		logConfig,
+		func(cfg *tls2.CmdrTlsConfig) {
+			cfg.Cert = "unknown" // give a valid path if you like to enable TLS
+			cfg.Key = "unknown"
 		},
+		":1983",
+		"my-protocol://localhost:1983",
+		ignoredAdapterName,
 	)
-	config.Addr = ":1983"
-	config.UriBase = "my-protocol://localhost:1983"
 
 	serve, _, tlsEnabled, err := server.New(config)
 	if err != nil {
