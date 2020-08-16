@@ -39,6 +39,7 @@ type clientObj struct {
 	quiting             bool
 	closeErr            error
 	prefixInConfigFile  string
+	mainLoop            MainLoop
 }
 
 func (c *clientObj) ProtocolInterceptor() protocol.Interceptor {

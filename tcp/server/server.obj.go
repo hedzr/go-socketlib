@@ -22,7 +22,6 @@ type Obj struct {
 	udpConn             *udp.Obj
 	connections         []*connectionObj
 	closeErr            error
-	exitCh              chan struct{}
 	pfs                 base.PidFile
 	newConnFunc         NewConnectionFunc
 	protocolInterceptor protocol.Interceptor
@@ -42,7 +41,6 @@ func newServerObj(config *base.Config) (s *Obj) {
 		Logger:       nil,
 		connections:  nil,
 		closeErr:     nil,
-		exitCh:       make(chan struct{}),
 		newConnFunc:  newConnObj,
 		netType:      defaultNetType,
 		config:       config,
@@ -92,18 +90,6 @@ func (s *Obj) ListenTo(listener net.Listener) {
 	s.listener = listener
 }
 
-func (s *Obj) RequestShutdown() {
-	close(s.exitCh)
-	if s.listener != nil {
-		s.closeErr = s.listener.Close()
-		s.listener = nil
-	}
-	if s.udpConn != nil {
-		s.closeErr = s.udpConn.Close()
-		s.udpConn = nil
-	}
-}
-
 func (s *Obj) Close() {
 	if s.listener != nil {
 		s.closeErr = s.listener.Close()
@@ -122,6 +108,8 @@ func (s *Obj) Close() {
 		s.pfs.Destroy()
 		s.pfs = nil
 	}
+
+	globalDoneCh <- struct{}{}
 }
 
 func (s *Obj) isUDP() bool {
@@ -184,7 +172,10 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 
 	// baseCtx := context.Background()
 	ctx, cancel := context.WithCancel(baseCtx)
-	defer cancel()
+	defer func() {
+		s.Debugf("cancel()")
+		cancel()
+	}()
 
 	if s.protocolInterceptor != nil {
 		s.protocolInterceptor.OnServerReady(ctx, s)
@@ -202,15 +193,18 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 
 		for {
 			conn, e := s.listener.Accept()
-			if e != nil {
-				select {
-				case <-s.exitCh:
-					return ErrServerClosed
-				case <-ctx.Done():
-					return ErrServerClosed
-				default:
-				}
+			s.Debugf("...listener.Accept: err=%v", err)
 
+			select {
+			case <-globalExitCh:
+				s.Debugf("...global exiting")
+				return ErrServerClosed
+			case <-ctx.Done():
+				return ErrServerClosed
+			default:
+			}
+
+			if e != nil {
 				if ne, ok := e.(net.Error); ok && ne.Temporary() {
 					// handle the error
 					s.Errorf("can't accept a connection: %v", e)
@@ -239,3 +233,28 @@ func (s *Obj) SetNewConnectionFunc(fn NewConnectionFunc) {
 	s.newConnFunc = fn
 	return
 }
+
+func (s *Obj) RequestShutdown() {
+	if s.listener != nil {
+		close(globalExitCh)
+	}
+	s.Debugf("closing...")
+	if s.listener != nil {
+		s.closeErr = s.listener.Close()
+		s.listener = nil
+	}
+	if s.udpConn != nil {
+		s.closeErr = s.udpConn.Close()
+		s.udpConn = nil
+	}
+}
+
+// Shutdown shutdown the server gracefully
+func Shutdown(serverObj *Obj) {
+	serverObj.RequestShutdown()
+	time.Sleep(5 * time.Millisecond)
+	<-globalDoneCh
+}
+
+var globalExitCh = make(chan struct{})
+var globalDoneCh = make(chan struct{})

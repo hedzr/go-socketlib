@@ -8,7 +8,28 @@ import (
 	"strings"
 )
 
+func New(udpMode bool, config *base.Config, opts ...Opt) error {
+	opts = append(opts, WithClientUDPMode(udpMode))
+	return defaultLooper(config, nil, nil, "", opts...)
+}
+
 type Opt func(obj *clientObj)
+
+func WithClientUDPMode(udpMode bool) Opt {
+	return func(obj *clientObj) {
+		if udpMode {
+			obj.mainLoop = defaultUdpMainLoop
+		} else {
+			obj.mainLoop = defaultMainLoop
+		}
+	}
+}
+
+func WithClientMainLoop(mainLoop MainLoop) Opt {
+	return func(obj *clientObj) {
+		obj.mainLoop = mainLoop
+	}
+}
 
 func WithClientPrefixPrefix(prefixPrefix string) Opt {
 	return func(obj *clientObj) {

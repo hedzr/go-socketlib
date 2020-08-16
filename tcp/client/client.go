@@ -45,6 +45,27 @@ func DefaultLooper(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPr
 	return
 }
 
+func defaultLooper(config *base.Config, cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+	if cmd != nil {
+		config = base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
+	} else if config == nil {
+		panic("config MUST be specified")
+	}
+
+	config.BuildLogger()
+	if err = config.BuildAddr(); err != nil {
+		config.Logger.Fatalf("%v", err)
+	}
+
+	if strings.HasPrefix(config.Network, "udp") {
+		err = udpLoop(config, nil, opts...)
+		return
+	}
+
+	err = tcpUnixLoop(config, nil, opts...)
+	return
+}
+
 func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
 	config.BuildLogger()

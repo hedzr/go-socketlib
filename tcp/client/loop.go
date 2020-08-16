@@ -56,6 +56,9 @@ func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error
 	defer co.Close()
 	co.startLoopers()
 
+	if mainLoop == nil {
+		mainLoop = co.mainLoop
+	}
 	mainLoop(context.Background(), co.AsBaseConn(), done, config)
 	//cmdr.TrapSignalsEnh(done, func(s os.Signal) {
 	//	config.Logger.Debugf("signal[%v] caught and exiting this program", s)
@@ -91,6 +94,9 @@ func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 		config.Logger.Debugf("Serve() end.")
 	}()
 
+	if mainLoop == nil {
+		mainLoop = co.mainLoop
+	}
 	mainLoop(ctx, uo.AsBaseConn(), done, config)
 
 	return

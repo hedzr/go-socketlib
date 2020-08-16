@@ -121,7 +121,7 @@ func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 			fmt.Println("< " + "%quit%")
 			s.WriteString("%quit%\n")
 			//os.Exit(0)
-			s.Close()
+			//s.Close()
 			s.serverObj.RequestShutdown()
 
 		default:
@@ -136,11 +136,10 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 		case msg := <-s.wrCh:
 			s.doWrite(ctx, msg)
 		case <-ctx.Done():
-			return
-		case <-ctx.Done():
 			// If the request gets cancelled, log it
 			// to STDERR
-			s.serverObj.Errorf("[#%d] request cancelled", s.uid)
+			s.serverObj.Warnf("[#%d] request cancelled", s.uid)
+			return
 		}
 	}
 }
@@ -192,7 +191,10 @@ func (s *connectionObj) RawWrite(ctx context.Context, msg []byte) (n int, err er
 }
 
 func (s *connectionObj) RemoteAddrString() string {
-	return s.conn.RemoteAddr().String()
+	if s.conn != nil {
+		return s.conn.RemoteAddr().String()
+	}
+	return ">?<"
 }
 
 func (s *connectionObj) RemoteAddr() net.Addr {
