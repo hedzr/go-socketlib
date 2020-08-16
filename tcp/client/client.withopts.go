@@ -9,7 +9,10 @@ import (
 )
 
 func New(udpMode bool, config *base.Config, opts ...Opt) error {
-	opts = append(opts, WithClientUDPMode(udpMode))
+	// opts = append(opts, WithClientUDPMode(udpMode))
+	if udpMode {
+		config.Network = "udp"
+	}
 	return defaultLooper(config, nil, nil, "", opts...)
 }
 

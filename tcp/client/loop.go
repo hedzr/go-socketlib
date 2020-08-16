@@ -6,6 +6,7 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/base"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tcp/udp"
+	"github.com/hedzr/log"
 	"net"
 	"sync"
 )
@@ -54,7 +55,12 @@ func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error
 
 	co := newClientObj(conn, config.Logger, opts...)
 	defer co.Close()
-	co.startLoopers()
+
+	if i, ok := co.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
+		i.SetLogger(config.Logger)
+	}
+
+	co.startLoopers(done)
 
 	if mainLoop == nil {
 		mainLoop = co.mainLoop
@@ -77,6 +83,10 @@ func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 
 	co := newClientObj(nil, config.Logger, opts...)
 	defer co.Join(ctx, done)
+
+	if i, ok := co.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
+		i.SetLogger(config.Logger)
+	}
 
 	ln := cmdr.GetIntRP(config.PrefixInConfigFile, "listeners", 0)
 	uo := udp.New(co, udp.WithListenerNumber(ln))

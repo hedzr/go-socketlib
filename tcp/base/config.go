@@ -170,7 +170,10 @@ func (c *Config) PressEnterToExit() {
 	fmt.Print("Press 'Enter' to exit...")
 	defer func() { fmt.Println() }()
 	b := make([]byte, 1)
-	_, _ = os.Stdin.Read(b)
+	_, err := os.Stdin.Read(b)
+	if err == nil {
+		fmt.Printf("[%v]", string(b))
+	}
 }
 
 const DefaultPidPathTemplate = "/var/run/$APPNAME/$APPNAME.pid"

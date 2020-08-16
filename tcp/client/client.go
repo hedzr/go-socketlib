@@ -129,8 +129,9 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 		return
 	}
 
+	done := make(chan bool)
 	co := newClientObj(conn, logger)
-	go co.readConnection()
+	go co.readConnection(done)
 
 	for i := 0; i < maxTimes; i++ {
 		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
@@ -180,9 +181,9 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 		os.Exit(1)
 	}
 
-	newClientObj(conn, logger).run()
+	newClientObj(conn, logger).run(done)
 
-	done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
+	// done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 	return
 }
 

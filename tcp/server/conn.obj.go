@@ -138,7 +138,7 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 		case <-ctx.Done():
 			// If the request gets cancelled, log it
 			// to STDERR
-			s.serverObj.Warnf("[#%d] request cancelled", s.uid)
+			s.serverObj.Debugf("[#%d] request cancelled", s.uid)
 			return
 		}
 	}

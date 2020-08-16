@@ -8,6 +8,7 @@ import (
 	"context"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/log"
 	"os"
 )
 
@@ -27,6 +28,9 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 
 	config.BuildLogger()
 	so.SetLogger(config.Logger)
+	if i, ok := so.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
+		i.SetLogger(config.Logger)
+	}
 
 	if cmdr.GetBoolRP(config.PrefixInCommandLine, "stop", false) {
 		if err = base.FindAndShutdownTheRunningInstance(so.pfs); err != nil {
@@ -99,9 +103,6 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 	}
 
 	go func() {
-		defer func() {
-			done <- true
-		}()
 		if tlsEnabled {
 			so.Printf("Listening on %s with TLS enabled.", config.Addr)
 		} else {
@@ -112,10 +113,11 @@ func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts .
 		if err = serve(baseCtx); err != nil {
 			so.Errorf("Serve() failed: %v", err)
 		}
+		done <- true // I'm done, cmdr.TrapSignalsEnh should end itself now
 	}()
 
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		so.Debugf("signal %v caught, requesting shutdown ...")
+		so.Debugf("signal %v caught, requesting shutdown ...", s)
 		so.RequestShutdown()
 	})()
 

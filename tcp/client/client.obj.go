@@ -71,7 +71,7 @@ func (c *clientObj) Close() {
 			c.protocolInterceptor.OnClosing(c.baseConn, 0)
 		}
 		c.baseConn.Close()
-		c.conn = nil
+		// c.conn = nil
 		c.baseConn = nil
 		if c.protocolInterceptor != nil {
 			c.protocolInterceptor.OnClosed(c.baseConn, 0)
@@ -79,13 +79,13 @@ func (c *clientObj) Close() {
 	}
 }
 
-func (c *clientObj) startLoopers() {
-	go c.readConnection()
+func (c *clientObj) startLoopers(done chan bool) {
+	go c.readConnection(done)
 	go c.runPrompt()
 }
 
-func (c *clientObj) run() {
-	go c.readConnection()
+func (c *clientObj) run(done chan bool) {
+	go c.readConnection(done)
 	c.runPrompt()
 }
 
@@ -104,6 +104,7 @@ func (c *clientObj) runPrompt() {
 		}
 
 		if text == "quit\n" || text == "exit\n" {
+			c.quiting = true
 			break
 		}
 
@@ -124,7 +125,11 @@ func (c *clientObj) runPrompt() {
 	}
 }
 
-func (c *clientObj) readConnection() {
+func (c *clientObj) readConnection(done chan bool) {
+	defer func() {
+		done <- true
+	}()
+
 	for {
 		scanner := bufio.NewScanner(c.conn)
 
@@ -142,7 +147,7 @@ func (c *clientObj) readConnection() {
 					return
 				}
 				fmt.Println("Reached EOF on server connection.")
-				break
+				return
 			}
 		}
 	}

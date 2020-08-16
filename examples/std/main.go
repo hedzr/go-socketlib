@@ -3,27 +3,26 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/go-socketlib/examples/std/impl"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
 	"os"
-	"time"
 )
 
 var (
-	clientMode     = flag.Bool("client", false, "server (false) or client (true)")
-	host           = flag.String("host", "localhost", "listening host")
-	port           = flag.Int("port", 50001, "listening port")
-	reg            = flag.String("reg", "localhost:32379", "register etcd address")
-	count          = flag.Int("count", 3, "instance's count")
-	connectTimeout = flag.Duration("connect-timeout", 5*time.Second, "connect timeout")
+	clientMode = flag.Bool("client", false, "server (false) or client (true)")
+	//host           = flag.String("host", "localhost", "listening host")
+	//port           = flag.Int("port", 50001, "listening port")
+	//reg            = flag.String("reg", "localhost:32379", "register etcd address")
+	//count          = flag.Int("count", 3, "instance's count")
+	//connectTimeout = flag.Duration("connect-timeout", 5*time.Second, "connect timeout")
 )
 
 func main() {
-
 	flag.Parse()
 
 	if *clientMode == false {
@@ -58,8 +57,13 @@ func runClient() {
 
 	err := client.New(false, config,
 		client.WithClientMainLoop(func(ctx context.Context, conn base.Conn, done chan bool, config *base.Config) {
-			_, _ = conn.RawWrite(ctx, []byte(fmt.Sprintf("hello %v", time.Now())))
-			config.PressEnterToExit()
+
+			// _, _ = conn.RawWrite(ctx, []byte(fmt.Sprintf("hello %v", time.Now())))
+
+			// config.PressEnterToExit()
+			cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+				config.Logger.Debugf("signal[%v] caught and exiting this program", s)
+			})()
 		}),
 	)
 	if err != nil {
@@ -91,25 +95,33 @@ func runServer() {
 		ignoredAdapterName,
 	)
 
-	serve, serverObj, tlsEnabled, err := server.New(config)
+	done := make(chan bool, 1)
+	pis := impl.NewServerInterceptor()
+	serve, so, tlsEnabled, err := server.New(config, server.WithServerProtocolInterceptor(pis))
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 
-	if tlsEnabled {
-		log.Printf("Listening on %s with TLS enabled.", config.Addr)
-	} else {
-		log.Printf("Listening on %s.", config.Addr)
-	}
-
 	go func() {
-		ctx := context.Background()
-		err = serve(ctx)
+		if tlsEnabled {
+			log.Printf("Listening on %s with TLS enabled.", config.Addr)
+		} else {
+			log.Printf("Listening on %s.", config.Addr)
+		}
+
+		baseCtx := context.Background()
+		err = serve(baseCtx)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
+		done <- true // I'm done, cmdr.TrapSignalsEnh should end itself now
 	}()
 
-	config.PressEnterToExit()
-	server.Shutdown(serverObj)
+	// config.PressEnterToExit()
+	// server.Shutdown(so)
+
+	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+		so.Debugf("signal '%v' caught, requesting shutdown ...", s)
+		so.RequestShutdown()
+	})()
 }

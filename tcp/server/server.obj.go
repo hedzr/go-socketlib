@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
@@ -109,7 +110,7 @@ func (s *Obj) Close() {
 		s.pfs = nil
 	}
 
-	globalDoneCh <- struct{}{}
+	close(globalDoneCh) // *Obj server has completed its cleanup actions now
 }
 
 func (s *Obj) isUDP() bool {
@@ -161,7 +162,6 @@ func (s *Obj) serverBuildListener(baseCtx context.Context) (listener net.Listene
 }
 
 func (s *Obj) Serve(baseCtx context.Context) (err error) {
-	defer s.Close()
 	//for {
 	//	_, err := s.Accept()
 	//	if err != nil {
@@ -173,8 +173,10 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 	// baseCtx := context.Background()
 	ctx, cancel := context.WithCancel(baseCtx)
 	defer func() {
-		s.Debugf("cancel()")
+		fmt.Println()
+		s.Debugf("...Serve() ended.")
 		cancel()
+		s.Close()
 	}()
 
 	if s.protocolInterceptor != nil {

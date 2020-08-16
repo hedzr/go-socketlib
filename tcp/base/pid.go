@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/cmdr-addons/pkg/plugins/dex/sig"
+	"github.com/hedzr/log"
 	"github.com/hedzr/log/exec"
 	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"strconv"
@@ -19,7 +19,7 @@ func makePidFS(prefixInCommandLine, prefixInConfigFile, defaultDir string) *pidF
 	if defaultDir == "" {
 		dPath = DefaultPidPathTemplate
 	} else {
-		dPath = path.Join(defaultDir, "access.log")
+		dPath = path.Join(defaultDir, "$APPNAME.pid")
 	}
 
 	var str string
@@ -103,6 +103,7 @@ func (pf *pidFileStruct) Destroy() {
 		if err != nil {
 			panic(errors.New("Failed to destroy pid file %q", pf.Path).Attach(err))
 		}
+		log.Infof("%q destroyed", pf.path)
 	}
 }
 
@@ -142,7 +143,7 @@ func FindDaemonProcess(pfs PidFile) (present bool, process *os.Process, err erro
 		var pid int64
 		pid, err = strconv.ParseInt(string(s), 0, 64)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("%v", err)
 		}
 		log.Printf("cat %v ... pid = %v", pfs, pid)
 
