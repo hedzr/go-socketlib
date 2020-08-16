@@ -134,13 +134,13 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 
 	switch cmdr.GetIntRP(prefix, "tls-version", 2) {
 	case 0:
-		s.MinTlsVersion = tls.VersionTLS10
+		s.MinTlsVersion = VersionTLS10
 	case 1:
-		s.MinTlsVersion = tls.VersionTLS11
+		s.MinTlsVersion = VersionTLS11
 	case 3:
-		s.MinTlsVersion = tls.VersionTLS13
+		s.MinTlsVersion = VersionTLS13
 	default:
-		s.MinTlsVersion = tls.VersionTLS12
+		s.MinTlsVersion = VersionTLS12
 	}
 }
 
@@ -181,13 +181,13 @@ func (s *CmdrTlsConfig) InitTlsConfigFromConfigFile(prefix string) {
 
 		switch cmdr.GetIntRP(prefix, "tls-version", int(s.MinTlsVersion-tls.VersionTLS10)) {
 		case 0:
-			s.MinTlsVersion = tls.VersionTLS10
+			s.MinTlsVersion = VersionTLS10
 		case 1:
-			s.MinTlsVersion = tls.VersionTLS11
+			s.MinTlsVersion = VersionTLS11
 		case 3:
-			s.MinTlsVersion = tls.VersionTLS13
+			s.MinTlsVersion = VersionTLS13
 		default:
-			s.MinTlsVersion = tls.VersionTLS12
+			s.MinTlsVersion = VersionTLS12
 		}
 	}
 }
@@ -235,7 +235,7 @@ func (s *CmdrTlsConfig) newTlsConfig() (config *tls.Config, err error) {
 	// We will determine the cipher suites that we prefer.
 	config = &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		MinVersion:   s.MinTlsVersion,
+		MinVersion:   uint16(s.MinTlsVersion),
 	}
 
 	// Require client certificates as needed
