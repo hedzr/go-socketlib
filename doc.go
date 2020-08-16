@@ -9,7 +9,7 @@ const (
 	// AppName const
 	AppName = "socketlib"
 	// Version const
-	Version = "0.2.1"
+	Version = "0.2.2"
 	// VersionInt const
-	VersionInt = 0x000201
+	VersionInt = 0x000202
 )
