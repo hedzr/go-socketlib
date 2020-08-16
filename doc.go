@@ -2,7 +2,7 @@
  * Copyright © 2019 Hedzr Yeh.
  */
 
-// Package socketlib make developing a tcp/udp protocol simple
+// Package socketlib provides a simple, fast approach to implement your communication protocol.
 package socketlib
 
 const (
