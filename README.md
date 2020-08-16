@@ -16,7 +16,7 @@ WIP. Here is a pre-release version.
 ## Features
 
 - supports TCP, UDP, and Unix socket server/client developing
-- Write your business logical with [protocol.Interceptor](https://github.com/hedzr/go-socketlib/protocol/protocol.go#L22)
+- Write your business logical with [protocol.Interceptor](https://github.com/hedzr/go-socketlib/blob/master/tcp/protocol/protocol.go#L22)
 
 
 
