@@ -1,6 +1,5 @@
 # go-socketlib
 
-**go-socketlib**:
 ![Go](https://github.com/hedzr/go-socketlib/workflows/Go/badge.svg)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/hedzr/go-socketlib.svg?label=release)](https://github.com/hedzr/go-socketlib/releases)
 [![](https://img.shields.io/badge/go-dev-green)](https://pkg.go.dev/github.com/hedzr/go-socketlib)
