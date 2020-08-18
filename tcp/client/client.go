@@ -29,7 +29,7 @@ type MainLoopHolder interface {
 	MainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config)
 }
 
-func DefaultLooper(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
+func DefaultCmdrCommandAction(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
 	config.BuildLogger()
 	if err = config.BuildAddr(); err != nil {
@@ -45,10 +45,11 @@ func DefaultLooper(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPr
 	return
 }
 
-func defaultLooper(config *base.Config, cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
-	if cmd != nil {
-		config = base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	} else if config == nil {
+func DefaultCommandAction(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
+	//if cmd != nil {
+	//	config = base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
+	//} else
+	if config == nil {
 		panic("config MUST be specified")
 	}
 
@@ -58,11 +59,11 @@ func defaultLooper(config *base.Config, cmd *cmdr.Command, args []string, prefix
 	}
 
 	if strings.HasPrefix(config.Network, "udp") {
-		err = udpLoop(config, nil, opts...)
+		err = udpLoop(config, mainLoop, opts...)
 		return
 	}
 
-	err = tcpUnixLoop(config, nil, opts...)
+	err = tcpUnixLoop(config, mainLoop, opts...)
 	return
 }
 

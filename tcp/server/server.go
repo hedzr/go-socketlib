@@ -85,7 +85,7 @@ const defaultNetType = "tcp"
 
 type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
 
-func DefaultLooper(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
+func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error) {
 	var (
 		serve      ServeFunc
 		so         *Obj

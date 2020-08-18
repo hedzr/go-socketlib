@@ -13,7 +13,7 @@ func New(udpMode bool, config *base.Config, opts ...Opt) error {
 	if udpMode {
 		config.Network = "udp"
 	}
-	return defaultLooper(config, nil, nil, "", opts...)
+	return DefaultCommandAction(config, nil, opts...)
 }
 
 type Opt func(obj *clientObj)
@@ -40,9 +40,12 @@ func WithClientPrefixPrefix(prefixPrefix string) Opt {
 	}
 }
 
-func WithClientProtocolInterceptor(fn protocol.ClientInterceptor) Opt {
+func WithClientProtocolInterceptor(pic protocol.ClientInterceptor) Opt {
 	return func(obj *clientObj) {
-		obj.protocolInterceptor = &ciWrapper{fn}
+		obj.protocolInterceptor = &ciWrapper{pic}
+		if mlh, ok := pic.(MainLoopHolder); ok {
+			obj.mainLoop = mlh.MainLoop
+		}
 	}
 }
 
@@ -51,7 +54,7 @@ type ciWrapper struct {
 }
 
 func (s *ciWrapper) OnListened(ctx context.Context, c base.Conn) {
-	// s.ci.OnListened(ctx, c)
+	panic("implement me")
 }
 
 func (s *ciWrapper) OnServerReady(ctx context.Context, server log.Logger) {

@@ -145,7 +145,7 @@ func (c *Config) BuildAddr() (err error) {
 }
 
 func (c *Config) BuildUriAddr(defaultPort string) (err error) {
-	c.Uri, err = url.Parse(cmdr.GetStringRP(c.PrefixInCommandLine, "host"))
+	c.Uri, err = url.Parse(cmdr.GetStringRP(c.PrefixInCommandLine, "host", c.Addr))
 	if err == nil {
 		c.UriBase = c.Uri.String()
 		port := c.Uri.Port()
@@ -160,7 +160,7 @@ func (c *Config) BuildUriAddr(defaultPort string) (err error) {
 			}
 			port = defaultPort
 		}
-		c.Uri.Host = net.JoinHostPort(c.Uri.Host, defaultPort)
+		c.Uri.Host = net.JoinHostPort(c.Uri.Hostname(), port)
 		c.Addr = c.Uri.Host
 	}
 	return

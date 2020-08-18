@@ -106,7 +106,7 @@ func WithCmdrServerOptions(opts ...Opt) CmdrOpt {
 }
 
 // WithCmdrCommandAction allows a custom CommandAction of yours.
-// The default is DefaultLooper, it's enough in most cases.
+// The default is DefaultCommandAction, it's enough in most cases.
 // But, if you want, write yours.
 func WithCmdrCommandAction(action CommandAction) CmdrOpt {
 	return func(b *builder) {
@@ -128,7 +128,7 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 
 	b := &builder{
 		port:         DefaultPort,
-		action:       DefaultLooper,
+		action:       DefaultCommandAction,
 		prefixPrefix: "",
 	}
 

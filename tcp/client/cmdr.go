@@ -37,9 +37,9 @@ func WithCmdrPrefixPrefix(prefixPrefix string) CmdrOpt {
 	}
 }
 
-func WithCmdrClientProtocolInterceptor(fn protocol.ClientInterceptor) CmdrOpt {
+func WithCmdrClientProtocolInterceptor(pic protocol.ClientInterceptor) CmdrOpt {
 	return func(b *builder) {
-		picOpt := WithClientProtocolInterceptor(fn)
+		picOpt := WithClientProtocolInterceptor(pic)
 		b.opts = append(b.opts, picOpt)
 	}
 }

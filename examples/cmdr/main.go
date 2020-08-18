@@ -5,19 +5,19 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/cert"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
+	"github.com/hedzr/log"
+	"github.com/hedzr/logex/build"
 
 	"github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 
-	"github.com/hedzr/log"
-	"github.com/hedzr/logex/logx/logrus"
 	_ "github.com/hedzr/logex/logx/zap"
 	_ "github.com/hedzr/logex/logx/zap/sugar"
 )
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(logrus.New("debug", false, true)),
-		cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "sugar", "debug"))),
+		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
 		trace.WithTraceEnable(true),
