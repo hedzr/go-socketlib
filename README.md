@@ -41,14 +41,17 @@ import (
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
-	"log"
+	"github.com/hedzr/log"
+	"github.com/hedzr/logex/build"
 )
 
 func main() {
-	if err := cmdr.Exec(buildRootCmd());//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
-	//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
-	err != nil {
-		log.Fatalf("error: %+v", err)
+	if err := cmdr.Exec(buildRootCmd(),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "sugar", "debug"))),
+		//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
+		//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
+	); err != nil {
+		cmdr.Logger.Fatalf("error: %+v", err)
 	}
 }
 
@@ -64,7 +67,7 @@ func buildRootCmd() (rootCmd *cmdr.RootCommand) {
 }
 
 func socketlibCmd(root cmdr.OptCmd) {
-  // for TCP server/client
+	// for TCP server/client
   
 	aCmd := root.NewSubCommand("tcp", "tcp", "socket", "socketlib").
 		Description("go-socketlib operations...", "").
@@ -72,15 +75,14 @@ func socketlibCmd(root cmdr.OptCmd) {
 	server.AttachToCmdr(aCmd, server.WithPort(1983))
 	client.AttachToCmdr(aCmd, client.WithCmdrPort(1983))
   
-  // for UDP server/client
+	// for UDP server/client
   
-  udpCmd := root.NewSubCommand("udp", "udp").
+	udpCmd := root.NewSubCommand("udp", "udp").
 		Description("go-socketlib UDP operations...", "").
 		Group("UDP")
 
 	server.AttachToCmdr(udpCmd, server.WithCmdrUDPMode(true), server.WithCmdrPort(1984))
 	client.AttachToCmdr(udpCmd, client.WithCmdrUDPMode(true), client.WithCmdrPort(1984))
-
 }
 
 const (
