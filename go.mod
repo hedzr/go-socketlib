@@ -17,10 +17,10 @@ go 1.13
 // replace github.com/hedzr/errors => ../errors
 
 require (
-	github.com/hedzr/cmdr v1.7.11
-	github.com/hedzr/cmdr-addons v1.7.11
-	github.com/hedzr/go-ringbuf v0.8.8
-	github.com/hedzr/log v0.1.17
-	github.com/hedzr/logex v1.2.9
+	github.com/hedzr/cmdr v1.7.21
+	github.com/hedzr/cmdr-addons v1.7.21
+	github.com/hedzr/go-ringbuf v0.8.9
+	github.com/hedzr/log v0.2.0
+	github.com/hedzr/logex v1.2.12
 	gopkg.in/hedzr/errors.v2 v2.1.0
 )
