@@ -22,5 +22,5 @@ require (
 	github.com/hedzr/go-ringbuf v0.8.9
 	github.com/hedzr/log v0.2.0
 	github.com/hedzr/logex v1.2.12
-	gopkg.in/hedzr/errors.v2 v2.1.0
+	gopkg.in/hedzr/errors.v2 v2.1.1
 )
