@@ -92,7 +92,7 @@ jobs:
               for GOARCH in amd64; do
                 suf=; if [[ $GOOS == "windows" ]]; then suf=".exe"; fi
                 go build -v -o bin/tcp-tool-$dir-$GOOS-$GOARCH$suf ./examples/$dir
-                gzip bin/tcp-tool-$dir-$GOOS-$GOARCH$suf
+                gzip -f bin/tcp-tool-$dir-$GOOS-$GOARCH$suf
               done
             done
           done
