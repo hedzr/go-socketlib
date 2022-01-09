@@ -13,6 +13,11 @@
 
 WIP. Here is a pre-release version.
 
+- v0.3.0 (WIP)
+  - BREAK: go 1.11 and below is no longer supported.
+  - fixed bugs found.
+
+
 ## Features
 
 - supports TCP, UDP, and Unix socket server/client developing
