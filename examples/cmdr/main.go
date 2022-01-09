@@ -2,9 +2,7 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/cert"
-	"github.com/hedzr/go-socketlib/tcp/client"
-	"github.com/hedzr/go-socketlib/tcp/server"
+	"github.com/hedzr/go-socketlib/examples/cmdr/opts"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 
@@ -39,32 +37,8 @@ func buildRootCmd() (rootCmd *cmdr.RootCommand) {
 		Examples(examples)
 	rootCmd = root.RootCommand()
 
-	socketLibCmd(root)
+	opts.AttachToCmdr(root)
 	return
-}
-
-func socketLibCmd(root cmdr.OptCmd) {
-
-	// TCP/UDP
-
-	tcpCmd := root.NewSubCommand("tcp", "tcp", "socket", "socketlib").
-		Description("go-socketlib TCO operations...", "").
-		Group("Socket")
-
-	server.AttachToCmdr(tcpCmd, server.WithCmdrPort(1983))
-	client.AttachToCmdr(tcpCmd, client.WithCmdrPort(1983), client.WithCmdrInteractiveCommand(true))
-
-	udpCmd := root.NewSubCommand("udp", "udp").
-		Description("go-socketlib UDP operations...", "").
-		Group("Socket")
-
-	server.AttachToCmdr(udpCmd, server.WithCmdrUDPMode(true), server.WithCmdrPort(1984))
-	client.AttachToCmdr(udpCmd, client.WithCmdrUDPMode(true), client.WithCmdrPort(1984))
-
-	// Cert
-
-	cert.AttachToCmdr(root)
-
 }
 
 const (
