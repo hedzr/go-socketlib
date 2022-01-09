@@ -41,7 +41,11 @@ func NewConfigFromCmdrCommand(isServer bool, prefixPrefix string, cmd *cmdr.Comm
 
 	loggerConfig := cmdr.NewLoggerConfig()
 
-	return NewConfigWithParams(isServer, netType, prefixPrefix, prefixCLI, loggerConfig, nil, "", "", "")
+	return NewConfigWithParams(isServer, netType,
+		prefixPrefix, prefixCLI,
+		loggerConfig,
+		nil,
+		"", "", "")
 }
 
 func NewConfigWithParams(isServer bool, netType, prefixPrefix, prefixCLI string, loggerConfig *log.LoggerConfig, tlsConfigInitializer tls2.Initializer, addr, uriBase, adapter string) *Config {
@@ -125,7 +129,12 @@ func (c *Config) BuildAddr() (err error) {
 		return c.BuildUriAddr(cmdr.GetStringRP(c.PrefixInCommandLine, "port"))
 	}
 	c.UriBase = c.Addr
-	host, port, err = net.SplitHostPort(c.Addr)
+
+	host = c.Addr //ip := net.ParseIP(host)
+	if !strings.Contains(host, ":") {
+		host = net.JoinHostPort(host, "0")
+	}
+	host, port, err = net.SplitHostPort(host)
 	if port == "" || port == "0" {
 		err = nil
 		port = strconv.FormatInt(cmdr.GetInt64RP(c.PrefixInCommandLine, "port", 1024), 10)
