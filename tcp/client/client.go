@@ -81,6 +81,11 @@ func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPre
 
 	// tcp, unix
 
+	//if cmdr.GetBoolRP(config.PrefixInCommandLine, "dry-run") {
+	//	cmdr.DebugOutputTildeInfo(true)
+	//	return
+	//}
+
 	done := make(chan bool, 1)
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(config.PrefixInCommandLine, "interactive")) {
 		err = runOneClient(config.Logger, done, cmd, args)

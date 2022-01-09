@@ -232,6 +232,12 @@ func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
 		// Group("TLS").
 		AttachTo(theClient)
 
+	//cmdr.NewBool().
+	//	Titles("dry-run", "dr", "dr").
+	//	Description("dry-run mode, no connect and send/recv").
+	//	Group("Test").
+	//	AttachTo(theClient)
+
 }
 
 func (b *builder) attachTcpTLSClientFlags(theClient cmdr.OptCmd) {
