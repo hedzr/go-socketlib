@@ -246,7 +246,7 @@ go-build-task: directories tools go-generate
 	        $(foreach goos, $(os), \
 	        $(foreach goarch, $(goarchset), \
 			echo "     > DOCNAME = $(DOCNAME), MAINGONAME = $(MAINGONAME)"; \
-			echo "     > APP NAMEs = appname:$(APPNAME)|projname:$(PROJECTNAME)|an:$(an)"; \
+			echo "     > APP NAMEs = san:$(san)|appname:$(APPNAME)|projname:$(PROJECTNAME)|an:$(an)"; \
 			$(MAKE) -s go-build-child os=$(goos) goarch=$(goarch) SUFFIX="_$(goos)-$(goarch)" DOCNAME=$(DOCNAME) MAINGONAME=$(MAINGONAME) an=$(an) san=$(san); \
 			) ) \
 		  fi; \
@@ -266,23 +266,18 @@ go-build-task: directories tools go-generate
 
 go-build-child:
 	@echo "     >  go-build-child: suffix = $(SUFFIX), DOCNAME = $(DOCNAME), MAINGONAME = $(MAINGONAME), AN = $(an), san = $(san)."
-	$(eval APPNAME = $(patsubst "%",%,$(shell grep -E "AppName[ \t]+=[ \t]+" "$(DOCNAME)" 2>/dev/null|grep -Eo "\\\".+\\\"")))
+	# $(eval APPNAME = $(patsubst "%",%,$(shell grep -E "AppName[ \t]+=[ \t]+" "$(DOCNAME)" 2>/dev/null|grep -Eo "\\\".+\\\"")))
+	$(eval APPNAME = $(san))
 	$(eval VERSION = $(shell grep -E "Version[ \t]+=[ \t]+" "$(DOCNAME)" 2>/dev/null|grep -Eo "[0-9.]+"))
-	@echo "        > detecting SUB_APPS: $(APPNAME) v$(VERSION)"
-	$(eval ANAME = $(shell for an1 in $(MAIN_APPS); do \
-		if [[ "$(an)" == $$an1 ]]; then \
-		  if [[ $$an1 == cli ]]; then echo $(APPNAME); else echo $$an1; fi; \
-		fi; \
-	done))
 	$(eval LDFLAGS = -s -w \
 		-X '$(W_PKG).Buildstamp=$(BUILDTIME)' \
 		-X '$(W_PKG).Githash=$(GIT_REVISION)' \
 		-X '$(W_PKG).GoVersion=$(GOVERSION)' \
 		-X '$(W_PKG).Version=$(VERSION)' )
-	echo "     >  >  Building $(MAINGONAME) -> $(ANAME)$(SUFFIX) v$(VERSION) ..."
-	echo "           +race. -trimpath. APPNAME = $(APPNAME), LDFLAGS = $(LDFLAGS)"
-	$(GO) build -v -ldflags "$(LDFLAGS)" -o $(GOBIN)/$(ANAME)$(SUFFIX) $(MAINGONAME)
-	ls -la $(LS_OPT) $(GOBIN)/$(ANAME)$(SUFFIX)
+	@echo "        >  Building $(MAINGONAME) -> $(APPNAME)$(SUFFIX) v$(VERSION) ..."
+	@echo "           +race. -trimpath. APPNAME = $(APPNAME), LDFLAGS = $(LDFLAGS)"
+	$(GO) build -v -ldflags "$(LDFLAGS)" -o $(GOBIN)/$(APPNAME)$(SUFFIX) $(MAINGONAME)
+	@ls -la $(LS_OPT) $(GOBIN)/$(APPNAME)$(SUFFIX)
 	@echo "  > go-build-child: END."
 
 
