@@ -111,7 +111,11 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 
 		baseCtx := context.Background()
 		if err = serve(baseCtx); err != nil {
-			so.Errorf("Serve() failed: %v", err)
+			if err.Error() == "server closed" {
+				err = nil
+			} else {
+				so.Errorf("Serve() failed: %v", err)
+			}
 		}
 		done <- true // I'm done, cmdr.TrapSignalsEnh should end itself now
 	}()
