@@ -15,6 +15,7 @@ type readerFunc func(p []byte) (n int, err error)
 
 func (rf readerFunc) Read(p []byte) (n int, err error) { return rf(p) }
 
+// Copy _
 // slightly modified function signature:
 // - context has been added in order to propagate cancelation
 // - I do not return the number of bytes written, has it is not useful in my use case
@@ -41,6 +42,7 @@ func Copy(ctx context.Context, dst io.Writer, src io.Reader) error {
 	return err
 }
 
+// Copyd _
 func Copyd(done <-chan struct{}, dst io.Writer, src io.Reader) error {
 
 	// Copy will call the Reader and Writer interface multiple time, in order
@@ -68,6 +70,7 @@ type writerFunc func(p []byte) (n int, err error)
 
 func (wf writerFunc) Write(p []byte) (n int, err error) { return wf(p) }
 
+// OnRead _
 func OnRead(done <-chan struct{}, src io.Reader, onRead writerFunc) error {
 
 	// Copy will call the Reader and Writer interface multiple time, in order
