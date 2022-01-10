@@ -180,49 +180,58 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 	}()
 
 	if s.protocolInterceptor != nil {
+		defer func() {
+			s.protocolInterceptor.OnServerClosed(s)
+		}()
 		s.protocolInterceptor.OnServerReady(ctx, s)
-		defer func() { s.protocolInterceptor.OnServerClosed(s) }()
 	}
 
-	switch s.isUDP() {
-	case true:
-		err = s.udpConn.Serve(ctx)
-		if err != nil {
-			s.Errorf("UDP serve failed: %v", err)
-		}
+	err = executors[s.isUDP()](s, ctx)
+	return
+}
 
-	default:
+var executors = map[bool]func(s *Obj, ctx context.Context) (err error){
+	true:  udpExecutor,
+	false: tcpExecutor,
+}
 
-		for {
-			conn, e := s.listener.Accept()
-			s.Debugf("...listener.Accept: err=%v", err)
-
-			select {
-			case <-globalExitCh:
-				s.Debugf("...global exiting")
-				return ErrServerClosed
-			case <-ctx.Done():
-				return ErrServerClosed
-			default:
-			}
-
-			if e != nil {
-				if ne, ok := e.(net.Error); ok && ne.Temporary() {
-					// handle the error
-					s.Errorf("can't accept a connection: %v", e)
-				}
-				return e
-			}
-
-			var co Connection
-			co = s.newConnection(ctx, conn)
-			go co.HandleConnection(ctx)
-			//c := srv.newConn(rw)
-			//c.setState(c.rwc, StateNew) // before Serve can return
-			//go c.serve(ctx)
-		}
+func udpExecutor(s *Obj, ctx context.Context) (err error) {
+	err = s.udpConn.Serve(ctx)
+	if err != nil {
+		s.Errorf("UDP serve failed: %v", err)
 	}
+	return
+}
 
+func tcpExecutor(s *Obj, ctx context.Context) (err error) {
+	for {
+		conn, e := s.listener.Accept()
+		s.Debugf("...listener.Accept: err=%v", err)
+
+		select {
+		case <-globalExitCh:
+			s.Debugf("...global exiting")
+			return ErrServerClosed
+		case <-ctx.Done():
+			return ErrServerClosed
+		default:
+		}
+
+		if e != nil {
+			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+				// handle the error
+				s.Errorf("can't accept a connection: %v", e)
+			}
+			return e
+		}
+
+		var co Connection
+		co = s.newConnection(ctx, conn)
+		go co.HandleConnection(ctx)
+		//c := srv.newConn(rw)
+		//c.setState(c.rwc, StateNew) // before Serve can return
+		//go c.serve(ctx)
+	}
 	return
 }
 
@@ -251,7 +260,7 @@ func (s *Obj) RequestShutdown() {
 	}
 }
 
-// Shutdown shutdown the server gracefully
+// Shutdown will close down the server gracefully
 func Shutdown(serverObj *Obj) {
 	serverObj.RequestShutdown()
 	time.Sleep(5 * time.Millisecond)
