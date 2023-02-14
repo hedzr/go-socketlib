@@ -91,7 +91,7 @@ jobs:
             for GOOS in windows linux darwin; do
               for GOARCH in amd64; do
                 suf=; if [[ $GOOS == "windows" ]]; then suf=".exe"; fi
-                go build -v -o bin/tcp-tool-$dir-$GOOS-$GOARCH$suf ./examples/$dir
+                go build -v -o bin/tcp-tool-$dir-$GOOS-$GOARCH$suf ./_examples/$dir
                 gzip -f bin/tcp-tool-$dir-$GOOS-$GOARCH$suf
               done
             done
