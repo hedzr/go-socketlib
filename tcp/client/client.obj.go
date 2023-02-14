@@ -40,6 +40,7 @@ type clientObj struct {
 	closeErr            error
 	prefixInConfigFile  string
 	mainLoop            MainLoop
+	buildPackage        BuildPackageFunc
 }
 
 func (c *clientObj) ProtocolInterceptor() protocol.Interceptor {

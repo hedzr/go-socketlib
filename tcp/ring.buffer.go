@@ -4,9 +4,7 @@
 
 package tcp
 
-import (
-	"github.com/hedzr/go-ringbuf/fast"
-)
+import "gopkg.in/hedzr/go-ringbuf.v1/fast"
 
 //// NewRingBuffer will allocate, initialize, and return a ring buffer
 //// with the specified size.

@@ -6,11 +6,12 @@ package client
 
 import (
 	"context"
+	"os"
+	"time"
+
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"os"
-	"time"
 )
 
 const (
@@ -68,21 +69,27 @@ func WithCmdrMainLoop(mainLoop MainLoop) CmdrOpt {
 	}
 }
 
+func WithCmdrClientBuildPackageFunc(fn BuildPackageFunc) CmdrOpt {
+	return func(b *builder) {
+		b.opts = append(b.opts, WithClientBuildPackageFunc(fn))
+	}
+}
+
 func WithCmdrNil() CmdrOpt {
 	return nil
 }
 
 type builder struct {
 	port               int
-	interactiveCommand bool
-	action             CommandAction
-	mainLoop           MainLoop
+	interactiveCommand bool          // normal loop or bench testing loop
+	action             CommandAction //
+	mainLoop           MainLoop      //
 	udpMode            bool
 	prefixPrefix       string
 	opts               []Opt
 }
 
-func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
+func AttachToCmdrCommand(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	// tcp := root.NewSubCommand().
 	// 	Titles("t", "tcp").
 	// 	Description("", "").
@@ -103,10 +110,11 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	}
 
 	if b.interactiveCommand {
-		tc2 := tcp.NewSubCommand("interactive-client", "ic").
+		tc2 := cmdr.NewSubCmd().Titles("interactive-client", "ic").
 			Description("TCP interactive client operations").
 			Group("Test").
-			Action(interactiveRunAsCliTool)
+			Action(interactiveRunAsCliTool).
+			AttachTo(tcp)
 		b.attachTcpClientFlags(tc2)
 	}
 
@@ -118,13 +126,14 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		}
 	}
 
-	theClient := tcp.NewSubCommand("client", "c").
+	theClient := cmdr.NewSubCmd().Titles("client", "c").
 		Description("TCP/UDP/Unix client operations").
 		// Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
 			err = b.action(cmd, args, b.mainLoop, b.prefixPrefix, b.opts...)
 			return
-		})
+		}).
+		AttachTo(tcp)
 
 	b.attachTcpClientFlags(theClient)
 
@@ -241,9 +250,10 @@ func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
 }
 
 func (b *builder) attachTcpTLSClientFlags(theClient cmdr.OptCmd) {
-	theClient.NewFlagV(false, "enable-tls", "tls").
+	cmdr.NewBool().Titles("enable-tls", "tls").
 		Description("enable TLS mode").
-		Group("TLS")
+		Group("TLS").
+		AttachTo(theClient)
 
 	cmdr.NewString("root.pem").
 		Titles("cacert", "ca").

@@ -8,14 +8,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/hedzr/cmdr"
-	"github.com/hedzr/log"
-	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
 	"net"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+	"github.com/hedzr/log/dir"
+	"gopkg.in/hedzr/errors.v3"
 )
 
 func NewTlsConfig(fn func(config *CmdrTlsConfig)) *CmdrTlsConfig {
@@ -112,20 +114,20 @@ func (s *CmdrTlsConfig) InitTlsConfigFromCommandline(prefix string) {
 	}
 
 	for _, loc := range cmdr.GetStringSliceRP(prefix, "locations", "./ci/certs", "$CFG_DIR/certs") {
-		if s.CaCert != "" && cmdr.FileExists(path.Join(loc, s.CaCert)) {
+		if s.CaCert != "" && dir.FileExists(path.Join(loc, s.CaCert)) {
 			s.CaCert = path.Join(loc, s.CaCert)
 		} else if s.CaCert != "" {
 			continue
 		}
-		if s.ServerCert != "" && cmdr.FileExists(path.Join(loc, s.ServerCert)) {
+		if s.ServerCert != "" && dir.FileExists(path.Join(loc, s.ServerCert)) {
 			s.ServerCert = path.Join(loc, s.ServerCert)
 		}
-		if s.Cert != "" && cmdr.FileExists(path.Join(loc, s.Cert)) {
+		if s.Cert != "" && dir.FileExists(path.Join(loc, s.Cert)) {
 			s.Cert = path.Join(loc, s.Cert)
 		} else if s.Cert != "" {
 			continue
 		}
-		if s.Key != "" && cmdr.FileExists(path.Join(loc, s.Key)) {
+		if s.Key != "" && dir.FileExists(path.Join(loc, s.Key)) {
 			s.Key = path.Join(loc, s.Key)
 		} else if s.Key != "" {
 			continue
@@ -162,17 +164,17 @@ func (s *CmdrTlsConfig) InitTlsConfigFromConfigFile(prefix string) {
 		s.Key = cmdr.GetStringRP(prefix, "key")
 
 		for _, loc := range cmdr.GetStringSliceRP(prefix, "locations") {
-			if s.CaCert != "" && cmdr.FileExists(path.Join(loc, s.CaCert)) {
+			if s.CaCert != "" && dir.FileExists(path.Join(loc, s.CaCert)) {
 				s.CaCert = path.Join(loc, s.CaCert)
 			} else if s.CaCert != "" {
 				continue
 			}
-			if s.Cert != "" && cmdr.FileExists(path.Join(loc, s.Cert)) {
+			if s.Cert != "" && dir.FileExists(path.Join(loc, s.Cert)) {
 				s.Cert = path.Join(loc, s.Cert)
 			} else if s.Cert != "" {
 				continue
 			}
-			if s.Key != "" && cmdr.FileExists(path.Join(loc, s.Key)) {
+			if s.Key != "" && dir.FileExists(path.Join(loc, s.Key)) {
 				s.Key = path.Join(loc, s.Key)
 			} else if s.Key != "" {
 				continue
@@ -222,12 +224,12 @@ func (s *CmdrTlsConfig) newTlsConfig() (config *tls.Config, err error) {
 	var cert tls.Certificate
 	cert, err = tls.LoadX509KeyPair(s.Cert, s.Key)
 	if err != nil {
-		err = errors.New("error parsing X509 certificate/key pair").Attach(err)
+		err = errors.New("error parsing X509 certificate/key pair").WithErrors(err)
 		return
 	}
 	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		err = errors.New("error parsing certificate").Attach(err)
+		err = errors.New("error parsing certificate").WithErrors(err)
 		return
 	}
 

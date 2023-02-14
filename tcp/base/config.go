@@ -2,16 +2,17 @@ package base
 
 import (
 	"fmt"
-	"github.com/hedzr/cmdr"
-	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/log"
-	"github.com/hedzr/logex/build"
-	"gopkg.in/hedzr/errors.v2"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/hedzr/cmdr"
+	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
+	"github.com/hedzr/log"
+	"github.com/hedzr/logex/build"
+	"gopkg.in/hedzr/errors.v3"
 )
 
 type Config struct {

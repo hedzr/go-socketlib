@@ -5,9 +5,10 @@
 package tcp
 
 import (
+	log2 "log"
+
 	"github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
-	log2 "log"
 )
 
 func WithServerOnProcessFunc(onProcess OnTcpServerProcessFunc) ServerOpt {

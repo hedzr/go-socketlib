@@ -53,39 +53,48 @@ func (s *connectionObj) Logger() log.Logger {
 
 func (s *connectionObj) Close() {
 	if s.conn != nil {
-		if s.serverObj.protocolInterceptor != nil {
-			s.serverObj.protocolInterceptor.OnClosing(s, 0)
+		if sspi := s.serverObj.protocolInterceptor; sspi != nil {
+			sspi.OnClosing(s, 0)
 		}
 		s.closeErr = s.conn.Close()
 		s.conn = nil
 	}
 	close(s.wrCh)
 	//close(s.exitCh)
-	if s.serverObj.protocolInterceptor != nil {
-		s.serverObj.protocolInterceptor.OnClosed(s, 0)
+	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
+		sspi.OnClosed(s, 0)
 	}
 }
 
 func (s *connectionObj) HandleConnection(ctx context.Context) {
 	s.serverObj.Debugf("[#%d] Client connected from %q", s.uid, s.RemoteAddrString())
 	defer func() {
+		if e := recover(); e != nil {
+			s.serverObj.Errorf("wrong/error, %v", e)
+		}
 		s.serverObj.Debugf("[#%d] Client at %q disconnected.", s.uid, s.RemoteAddrString())
 	}()
 
-	if s.serverObj.protocolInterceptor != nil {
-		s.serverObj.protocolInterceptor.OnConnected(ctx, s)
+	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
+		sspi.OnConnected(ctx, s)
 	}
 
 	go s.handleWriteRequests(ctx)
 
 	scanner := bufio.NewScanner(s.conn)
+	//scanner.Split(bufio.ScanWords)
+	scanner.Split(scanAA55)
 	for {
 		ok := scanner.Scan()
 		if !ok {
-			return
+			if scanner.Err() != nil { // not EOF?
+				log.Errorf("wrong/error: cannot scan the input stream: %v", scanner.Err())
+				break
+			}
 		}
 		select {
 		case <-ctx.Done():
+			log.Debugf("info: ctx.Done() got and exit from HandleConnection()")
 			return
 		default:
 		}
@@ -94,10 +103,25 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 	}
 }
 
+func scanAA55(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	for i := 0; i < len(data); i++ {
+		if data[i] == 0xaa && data[i+1] == 0x55 {
+			advance = i + 2
+			token = data[i : i+2]
+			return
+		}
+	}
+	return
+}
+
 func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 
-	if s.serverObj.protocolInterceptor != nil {
-		if processed, err := s.serverObj.protocolInterceptor.OnReading(ctx, s, msg); processed {
+	if msg == nil {
+		return
+	}
+
+	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
+		if processed, err := sspi.OnReading(ctx, s, msg); processed {
 			return
 		} else if err != nil {
 			s.serverObj.Errorf("[#%d] error occurs on intercepting reading bytes: %v", s.uid, err)
@@ -155,8 +179,8 @@ func (s *connectionObj) Write(message []byte) {
 func (s *connectionObj) doWrite(ctx context.Context, msg []byte) {
 	if s.conn != nil {
 
-		if s.serverObj.protocolInterceptor != nil {
-			if processed, err := s.serverObj.protocolInterceptor.OnWriting(ctx, s, msg); processed {
+		if sspi := s.serverObj.protocolInterceptor; sspi != nil {
+			if processed, err := sspi.OnWriting(ctx, s, msg); processed {
 				return
 			} else if err != nil {
 				s.serverObj.Errorf("[#%d] error occurs on intercepting writing bytes: %v", s.uid, err)

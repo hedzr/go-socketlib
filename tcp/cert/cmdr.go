@@ -1,26 +1,29 @@
 package cert
 
 import (
-	"github.com/hedzr/cmdr"
 	"time"
+
+	"github.com/hedzr/cmdr"
 )
 
-func AttachToCmdr(optCmd cmdr.OptCmd) {
-	certCmd := optCmd.NewSubCommand("cert").
+func AttachToCmdrCommand(optCmd cmdr.OptCmd) {
+	certCmd := cmdr.NewSubCmd().Titles("cert", "").
 		Description("certification tool (such as create-ca, create-cert, ...)", "certification tool (such as create-ca, create-cert, ...)\nverbose long descriptions here.").
-		Group("Tool")
+		Group("Tool").AttachTo(optCmd)
 
 	certSubCommands(certCmd)
 }
 
 func certSubCommands(certOptCmd cmdr.OptCmd) {
-	caCmd := certOptCmd.NewSubCommand("ca", "ca").
+	caCmd := cmdr.NewSubCmd().Titles("ca", "ca").
 		Description("certification tool (such as create-ca, create-cert, ...)", "certification tool (such as create-ca, create-cert, ...)\nverbose long descriptions here.").
-		Group("CA")
+		Group("CA").
+		AttachTo(certOptCmd)
 
-	_ = caCmd.NewSubCommand("create", "c").
+	_ = cmdr.NewSubCmd().Titles("create", "c").
 		Description("[NOT YET] create NEW CA certificates").
-		Action(caCreate)
+		Action(caCreate).
+		AttachTo(caCmd)
 	//log.Println(caCreateCmd)
 
 	// certCmd := certOptCmd.NewSubCommand().
@@ -28,17 +31,22 @@ func certSubCommands(certOptCmd cmdr.OptCmd) {
 	// 	Description("certification tool (such as create-ca, create-cert, ...)", "certification tool (such as create-ca, create-cert, ...)\nverbose long descriptions here.").
 	// 	Group("Tool")
 
-	certCreateCmd := certOptCmd.NewSubCommand("create", "c").
+	certCreateCmd := cmdr.NewSubCmd().Titles("create", "c").
 		Description("create NEW certificates").
-		Action(certCreate)
+		Action(certCreate).
+		AttachTo(certOptCmd)
 	//log.Println(certCreateCmd)
 
-	certCreateCmd.NewFlagV([]string{"localhost"}, "hostnames", "hns").
-		Description("Comma-separated hostname list and/or IPs to generate a certificate for")
-	certCreateCmd.NewFlagV("", "start-date", "sd", "from", "valid-from").
-		Description("Creation date formatted as Jan 1 15:04:05 2011 (default now)")
-	certCreateCmd.NewFlagV(365*10*24*time.Hour, "valid-for", "d", "duration").
-		Description("Duration (10yr for debugging) that certificate is valid for")
+	cmdr.NewStringSlice().Titles("hostnames", "hns").
+		Description("Comma-separated hostname list and/or IPs to generate a certificate for").
+		DefaultValue("localhost", "HOST").
+		AttachTo(certCreateCmd)
+	cmdr.NewString().Titles("start-date", "sd", "from", "valid-from").
+		Description("Creation date formatted as Jan 1 15:04:05 2011 (default now)").
+		AttachTo(certCreateCmd)
+	cmdr.NewDuration(365*10*24*time.Hour).Titles("valid-for", "d", "duration").
+		Description("Duration (10yr for debugging) that certificate is valid for").
+		AttachTo(certCreateCmd)
 
 	cmdr.NewString("./ci/certs").
 		Titles("output-dir", "o", "output").

@@ -6,10 +6,6 @@ package tcp
 
 import (
 	"bufio"
-	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/log"
-	"github.com/hedzr/log/trace"
 	"io"
 	"net"
 	"strconv"
@@ -17,6 +13,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/go-socketlib/tcp/tls"
+	"github.com/hedzr/log"
+	"github.com/hedzr/log/trace"
 )
 
 type Client struct {

@@ -206,7 +206,7 @@ func udpExecutor(s *Obj, ctx context.Context) (err error) {
 func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 	for {
 		conn, e := s.listener.Accept()
-		s.Debugf("...listener.Accept: err=%v", err)
+		s.Tracef("...listener.Accept: err=%v", err)
 
 		select {
 		case <-globalExitCh:
@@ -222,7 +222,8 @@ func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 				// handle the error
 				s.Errorf("can't accept a connection: %v", e)
 			}
-			return e
+			err = e
+			break
 		}
 
 		var co Connection

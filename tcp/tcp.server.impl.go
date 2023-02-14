@@ -6,13 +6,14 @@ package tcp
 
 import (
 	"bufio"
-	"github.com/hedzr/go-socketlib/tcp/tls"
 	"io"
 	"net"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hedzr/go-socketlib/tcp/tls"
 )
 
 const (
@@ -232,8 +233,8 @@ func (s *Server) handleRequest(conn net.Conn, tsConnected time.Time, done <-chan
 	reader, writer = s.onTcpServerCreateReadWriter(s, conn, tsConnected)
 
 	// ctxHolder, hasProcess := reader.(mqtt.Contextual)
-	cidHolder, hasProcess := reader.(interface{ GetClientID() string })
-	_, hasProcess = reader.(Processor)
+	cidHolder, _ := reader.(interface{ GetClientID() string })
+	_, hasProcess := reader.(Processor)
 
 	buf := make([]byte, s.bufferSize)
 	var nn int
@@ -244,7 +245,7 @@ func (s *Server) handleRequest(conn net.Conn, tsConnected time.Time, done <-chan
 				s.Debugf("♦︎ conn(from: %v) read i/o eof found. closing '%v'", conn.RemoteAddr(), cidHolder.GetClientID())
 			} else {
 				if n > 0 {
-					nn, _ = s.onTcpProcess(buf[:n], reader, writer)
+					_, _ = s.onTcpProcess(buf[:n], reader, writer)
 				}
 				if strings.Contains(err.Error(), "use of closed network connection") {
 					s.Tracef("♦︎ conn(from %v) closed by others.", conn.RemoteAddr())

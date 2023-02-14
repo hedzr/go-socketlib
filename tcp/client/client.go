@@ -10,9 +10,7 @@ import (
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/go-socketlib/tool"
 	"github.com/hedzr/log"
-	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -28,10 +26,12 @@ type MainLoop func(ctx context.Context, conn base.Conn, done chan bool, config *
 type MainLoopHolder interface {
 	MainLoop(ctx context.Context, conn base.Conn, done chan bool, config *base.Config)
 }
+type BuildPackageFunc func(i, threadId int, destAddr string) []byte
 
 func DefaultCmdrCommandAction(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	config.BuildLogger()
+	//config.BuildLogger()
+	config.Logger = cmdr.Logger
 	if err = config.BuildAddr(); err != nil {
 		config.Logger.Fatalf("%v", err)
 	}
@@ -69,7 +69,8 @@ func DefaultCommandAction(config *base.Config, mainLoop MainLoop, opts ...Opt) (
 
 func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	config.BuildLogger()
+	//config.BuildLogger()
+	config.Logger = cmdr.Logger
 	if err = config.BuildAddr(); err != nil {
 		config.Logger.Fatalf("%v", err)
 	}
@@ -88,7 +89,7 @@ func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPre
 
 	done := make(chan bool, 1)
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(config.PrefixInCommandLine, "interactive")) {
-		err = runOneClient(config.Logger, done, cmd, args)
+		err = runOneClient(config.Logger, done, cmd, args, opts...)
 
 	} else {
 		err = tcpUnixBenchLoop(config, done, opts...)
@@ -105,7 +106,7 @@ func interactiveRunAsCliTool(cmd *cmdr.Command, args []string) (err error) {
 	return
 }
 
-func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup) {
+func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, maxTimes int, sleep time.Duration, wg *sync.WaitGroup, opts ...Opt) {
 	var (
 		err  error
 		conn net.Conn
@@ -136,25 +137,30 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 	}
 
 	done := make(chan bool)
-	co := newClientObj(conn, logger)
+	co := newClientObj(conn, logger, opts...)
 	go co.readConnection(done)
 
+	//var buildPackage func(i int, destAddr, threadId string) []byte
 	for i := 0; i < maxTimes; i++ {
+		data := mqttConnectPkg
+		if co.buildPackage != nil {
+			data = co.buildPackage(i, tid, dest)
+		}
 		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
 		err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
 		if err != nil {
 			// fmt.Println("Error set writing deadline.")
-			logger.Errorf("[%d] failed to write daedline: %v", tid, err)
+			logger.Errorf("[%d] failed to write deadline: %v", tid, err)
 			break
 		}
 		// _, err = conn.Write([]byte(text))
-		_, err = conn.Write(mqttConnectPkg)
+		_, err = conn.Write(data)
 		if err != nil {
 			// fmt.Println("Error writing to stream.")
 			logger.Errorf("[%d] failed to write to stream: %v", tid, err)
 			break
 		}
-		logger.Debugf(" #%d sent", i)
+		logger.Tracef("%7d: sent", i)
 		if sleep > 0 {
 			time.Sleep(sleep)
 		}
@@ -162,7 +168,7 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 	return
 }
 
-func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []string) (err error) {
+func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []string, opts ...Opt) (err error) {
 	prefixInCommandLine := cmd.GetDottedNamePath()
 	dest := fmt.Sprintf("%s:%v", cmdr.GetStringRP(prefixInCommandLine, "host"), cmdr.GetIntRP(prefixInCommandLine, "port"))
 	fmt.Printf("Connecting to %s...\n", dest)
@@ -187,7 +193,7 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 		os.Exit(1)
 	}
 
-	newClientObj(conn, logger).run(done)
+	newClientObj(conn, logger, opts...).run(done)
 
 	// done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 	return
@@ -230,10 +236,10 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 // 	}
 // }
 
-func randRandSeq() string {
-	n := rand.Intn(64)
-	return tool.RandSeqln(n)
-}
+//func randRandSeq() string {
+//	n := rand.Intn(64)
+//	return tool.RandSeqln(n)
+//}
 
 var mqttConnectPkg = []byte{
 	16, 35,
@@ -243,15 +249,15 @@ var mqttConnectPkg = []byte{
 	99, 90, 78,
 }
 
-var mqttSubsribePkg = []byte{
-	130, 12,
-	0, 1,
-	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
-}
-
-var mqttSubscribe2TopicsPkg = []byte{
-	130, 22,
-	0, 2,
-	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
-	0, 7, 116, 111, 112, 105, 99, 48, 50, 0,
-}
+//var mqttSubsribePkg = []byte{
+//	130, 12,
+//	0, 1,
+//	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
+//}
+//
+//var mqttSubscribe2TopicsPkg = []byte{
+//	130, 22,
+//	0, 2,
+//	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
+//	0, 7, 116, 111, 112, 105, 99, 48, 50, 0,
+//}

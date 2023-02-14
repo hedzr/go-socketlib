@@ -9,7 +9,7 @@ import (
 )
 
 func New(config *base.Config, opts ...Opt) (serve ServeFunc, obj *Obj, tlsEnabled bool, err error) {
-	serve, obj, tlsEnabled, err = newServer(config, opts...)
+	serve, obj, tlsEnabled, err = newServer(config, nil, opts...)
 	return
 }
 

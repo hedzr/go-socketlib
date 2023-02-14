@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
+func newServer(config *base.Config, preferLogger log.Logger, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
 	// var logger log.Logger
 	// logger = build.New(config.LoggerConfig)
 	so = newServerObj(config)
@@ -26,7 +26,11 @@ func newServer(config *base.Config, opts ...Opt) (serve ServeFunc, so *Obj, tlsE
 	so.netType = cmdr.GetStringRP(config.PrefixInConfigFile, "network",
 		cmdr.GetStringRP(config.PrefixInCommandLine, "network", so.netType))
 
-	config.BuildLogger()
+	if preferLogger != nil {
+		config.Logger = preferLogger
+	} else {
+		config.BuildLogger()
+	}
 	so.SetLogger(config.Logger)
 	if i, ok := so.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
 		i.SetLogger(config.Logger)
@@ -94,7 +98,7 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 	)
 
 	config := base.NewConfigFromCmdrCommand(true, prefixPrefix, cmd)
-	serve, so, tlsEnabled, err = newServer(config, opts...)
+	serve, so, tlsEnabled, err = newServer(config, cmdr.Logger, opts...)
 	if err != nil {
 		if so != nil {
 			so.Fatalf("build listener failed: %v", err)
@@ -103,13 +107,15 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 	}
 
 	go func() {
+		baseCtx := context.Background()
+		
+		so.protocolInterceptor.OnListened(baseCtx, config.Addr)
 		if tlsEnabled {
 			so.Printf("Listening on %s with TLS enabled.", config.Addr)
 		} else {
 			so.Printf("Listening on %s.", config.Addr)
 		}
 
-		baseCtx := context.Background()
 		if err = serve(baseCtx); err != nil {
 			if err.Error() == "server closed" {
 				err = nil

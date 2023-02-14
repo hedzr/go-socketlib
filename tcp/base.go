@@ -30,6 +30,6 @@ func newBaseWithLogger(l log.Logger) base {
 
 func newBase(config *log.LoggerConfig) base {
 	return base{
-		log.NewStdLogger(), // build.New(config),
+		log.GetLogger(), // build.New(config),
 	}
 }

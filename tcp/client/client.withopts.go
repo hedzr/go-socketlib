@@ -49,20 +49,26 @@ func WithClientProtocolInterceptor(pic protocol.ClientInterceptor) Opt {
 	}
 }
 
+func WithClientBuildPackageFunc(fn BuildPackageFunc) Opt {
+	return func(obj *clientObj) {
+		obj.buildPackage = fn
+	}
+}
+
 type ciWrapper struct {
 	ci protocol.ClientInterceptor
 }
 
-func (s *ciWrapper) OnListened(ctx context.Context, c base.Conn) {
-	panic("implement me")
+func (s *ciWrapper) OnListened(baseCtx context.Context, addr string) {
+	//panic("implement me")
 }
 
 func (s *ciWrapper) OnServerReady(ctx context.Context, server log.Logger) {
-	panic("implement me")
+	//panic("implement me")
 }
 
 func (s *ciWrapper) OnServerClosed(server log.Logger) {
-	panic("implement me")
+	//panic("implement me")
 }
 
 func (s *ciWrapper) OnConnected(ctx context.Context, c base.Conn) {

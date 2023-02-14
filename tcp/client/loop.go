@@ -19,7 +19,7 @@ func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err err
 	var wg sync.WaitGroup
 	wg.Add(parallel)
 	for x := 0; x < parallel; x++ {
-		go clientRunner(config.Logger, config.PrefixInCommandLine, x, config.Addr, maxTimes, sleep, &wg)
+		go clientRunner(config.Logger, config.PrefixInCommandLine, x, config.Addr, maxTimes, sleep, &wg, opts...)
 	}
 	wg.Wait()
 
@@ -28,10 +28,12 @@ func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err err
 }
 
 func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
-	var conn net.Conn
-	var done = make(chan bool, 1)
-	var tid = 1
-	var ctc *tls2.CmdrTlsConfig
+	var (
+		conn net.Conn
+		done = make(chan bool, 1)
+		tid  = 1
+		ctc  *tls2.CmdrTlsConfig
+	)
 	if config.TlsConfigInitializer != nil {
 		ctc = tls2.NewTlsConfig(config.TlsConfigInitializer)
 	} else {

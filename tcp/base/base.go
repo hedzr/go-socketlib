@@ -10,7 +10,7 @@ type Base struct {
 }
 
 func NewBase( /*config *log.LoggerConfig*/ ) *Base {
-	return &Base{log.NewStdLogger()}
+	return &Base{log.GetLogger()}
 }
 
 func NewBaseLogger(config *log.LoggerConfig) *Base {

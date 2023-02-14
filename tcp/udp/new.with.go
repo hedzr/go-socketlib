@@ -1,12 +1,13 @@
 package udp
 
 import (
-	"github.com/hedzr/go-ringbuf/fast"
+	"net"
+	"time"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
-	"net"
-	"time"
+	"gopkg.in/hedzr/go-ringbuf.v1/fast"
 )
 
 type Opt func(*Obj)

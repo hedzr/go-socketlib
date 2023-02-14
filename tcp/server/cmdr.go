@@ -36,50 +36,51 @@ func WithCmdrUDPMode(mode bool) CmdrOpt {
 //
 // ```yaml
 // app:
-//   some-here:
-//     server:
-//       addr:       # host[:port]
-//       # The default ports for the whole socket-lib.
-//       ports:
-//         default: 1883
-//         tls: 8883
-//         websocket: 443
-//         #sn: 1884   # mqttsn udp mode
 //
-//       tls:
-//         enabled: true
-//         client-auth: false
-//         cacert: root.pem
-//         cert: cert.pem
-//         key: cert.key
-//         locations:
-//           - ./ci/certs
-//           - $CFG_DIR/certs
+//	some-here:
+//	  server:
+//	    addr:       # host[:port]
+//	    # The default ports for the whole socket-lib.
+//	    ports:
+//	      default: 1883
+//	      tls: 8883
+//	      websocket: 443
+//	      #sn: 1884   # mqttsn udp mode
 //
-//    cl ient:
-//       # To run the client with an interactive  mode, set interactive to true. The default is always false.
-//       # interactive: true
+//	    tls:
+//	      enabled: true
+//	      client-auth: false
+//	      cacert: root.pem
+//	      cert: cert.pem
+//	      key: cert.key
+//	      locations:
+//	        - ./ci/certs
+//	        - $CFG_DIR/certs
 //
-//       addr:       # host[:port]
-//       # The default ports for the whole socket-lib.
-//       ports:
-//         default: 1883
-//         tls: 8883
-//         websocket: 443
-//         #sn: 1884   # mqttsn udp mode
+//	 cl ient:
+//	    # To run the client with an interactive  mode, set interactive to true. The default is always false.
+//	    # interactive: true
 //
-//       tls:
-//         enabled: true
-//         cacert: root.pem
-//         server-cert: cert.pem
-//         client-auth: false
-//         cert: client.pem
-//         key: client.key
-//         locations:
-//           - ./ci/certs
-//           - $CFG_DIR/certs
+//	    addr:       # host[:port]
+//	    # The default ports for the whole socket-lib.
+//	    ports:
+//	      default: 1883
+//	      tls: 8883
+//	      websocket: 443
+//	      #sn: 1884   # mqttsn udp mode
+//
+//	    tls:
+//	      enabled: true
+//	      cacert: root.pem
+//	      server-cert: cert.pem
+//	      client-auth: false
+//	      cert: client.pem
+//	      key: client.key
+//	      locations:
+//	        - ./ci/certs
+//	        - $CFG_DIR/certs
+//
 // ```
-//
 func WithCmdrPrefixPrefix(prefixPrefix string) CmdrOpt {
 	return func(b *builder) {
 		b.prefixPrefix = prefixPrefix
@@ -124,7 +125,7 @@ func WithCmdrNil() CmdrOpt {
 	return nil
 }
 
-func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
+func AttachToCmdrCommand(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 
 	b := &builder{
 		port:         DefaultPort,
@@ -149,12 +150,13 @@ func AttachToCmdr(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		b.prefixPrefix = "tcp"
 	}
 
-	theServer := tcp.NewSubCommand("server", "s").
+	theServer := cmdr.NewSubCmd().Titles("server", "s").
 		Description("TCP/UDP/Unix Server Operations").
 		// Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
 			return b.action(cmd, args, b.prefixPrefix, b.opts...)
-		})
+		}).
+		AttachTo(tcp)
 
 	cmdr.NewBool().
 		Titles("stop", "s", "shutdown").

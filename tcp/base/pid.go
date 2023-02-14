@@ -3,15 +3,16 @@ package base
 import (
 	"context"
 	"fmt"
-	"github.com/hedzr/cmdr"
-	"github.com/hedzr/cmdr-addons/pkg/plugins/dex/sig"
-	"github.com/hedzr/log"
-	"github.com/hedzr/log/exec"
-	"gopkg.in/hedzr/errors.v2"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/go-socketlib/tcp/base/sig"
+	"github.com/hedzr/log"
+	"github.com/hedzr/log/dir"
+	"gopkg.in/hedzr/errors.v3"
 )
 
 func makePidFS(prefixInCommandLine, prefixInConfigFile, defaultDir string) *pidFileStruct {
@@ -66,8 +67,8 @@ func (pf *pidFileStruct) Path() string {
 }
 
 func (pf *pidFileStruct) Create(ctx context.Context) (err error) {
-	dir := path.Dir(pf.path)
-	if err = exec.EnsureDir(dir); err != nil {
+	d := path.Dir(pf.path)
+	if err = dir.EnsureDir(d); err != nil {
 		fmt.Printf(`
 
 You're been prompt with a "sudo" requesting because this folder was been creating but need more privileges:
@@ -76,8 +77,8 @@ You're been prompt with a "sudo" requesting because this folder was been creatin
 
 We must have created a PID file in it.
 
-`, dir)
-		if err = exec.EnsureDirEnh(dir); err != nil {
+`, d)
+		if err = dir.EnsureDirEnh(d); err != nil {
 			return
 		}
 	}
@@ -85,7 +86,7 @@ We must have created a PID file in it.
 	var f *os.File
 	f, err = os.OpenFile(pf.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0770)
 	if err != nil {
-		err = errors.New("Failed to create pid file %q", pf.path).Attach(err)
+		err = errors.New("Failed to create pid file %q", pf.path).WithErrors(err)
 	}
 
 	defer func() { err = f.Close() }()
@@ -98,10 +99,10 @@ func (pf *pidFileStruct) Destroy() {
 	// if cmdr.GetBoolR("server.start.in-daemon") {
 	//	//
 	// }
-	if cmdr.FileExists(pf.path) {
+	if dir.FileExists(pf.path) {
 		err := os.RemoveAll(pf.path)
 		if err != nil {
-			panic(errors.New("Failed to destroy pid file %q", pf.Path).Attach(err))
+			panic(errors.New("Failed to destroy pid file %q", pf.Path).WithErrors(err))
 		}
 		log.Infof("%q destroyed", pf.path)
 	}

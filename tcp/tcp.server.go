@@ -5,9 +5,10 @@
 package tcp
 
 import (
-	"github.com/hedzr/cmdr"
 	"log"
 	"os"
+
+	"github.com/hedzr/cmdr"
 )
 
 type ServerOpt func(*Server)
@@ -27,19 +28,15 @@ func StopServer(s *Server) {
 
 // HandleSignals returns a waiter function to listen some predefined os signals.
 //
-//
 // Usage
 //
-//  func enteringLoop() {
-// 	  waiter := cmdr.HandleSignals(func(s os.Signal) {
-// 	    // request shutdown:
-//      globalExitChan <- true
-// 	  })
-// 	  go waiter()
-//  }
-//
-//
-//
+//	 func enteringLoop() {
+//		  waiter := cmdr.HandleSignals(func(s os.Signal) {
+//		    // request shutdown:
+//	     globalExitChan <- true
+//		  })
+//		  go waiter()
+//	 }
 func HandleSignals(onTrapped func(s os.Signal)) (waiter func()) {
 	waiter = cmdr.TrapSignals(onTrapped)
 	return

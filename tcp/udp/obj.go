@@ -2,10 +2,6 @@ package udp
 
 import (
 	"context"
-	"github.com/hedzr/go-ringbuf/fast"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 	"net"
 	"runtime"
 	"strconv"
@@ -13,6 +9,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
+	"github.com/hedzr/log"
+	"gopkg.in/hedzr/go-ringbuf.v1/fast"
 )
 
 type Obj struct {
@@ -183,7 +184,7 @@ func (s *Obj) Create(baseCtx context.Context, network string, config *base.Confi
 			if err == nil && s.conn != nil && s.ProtocolInterceptor() != nil {
 				s.baseConn = &udpConnWrapper{s, s.conn, s.Logger}
 				s.Tracef("Created OK: %v", config.Addr)
-				s.ProtocolInterceptor().OnListened(baseCtx, s.baseConn)
+				s.ProtocolInterceptor().OnListened(baseCtx, config.Addr)
 			}
 		}
 	}
