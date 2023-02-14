@@ -2,7 +2,7 @@ package opts
 
 import (
 	"context"
-	"github.com/hedzr/go-socketlib/examples/cmdr/pibufio"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/pibufio"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/log"
 	"sync/atomic"

@@ -2,8 +2,8 @@ package opts
 
 import (
 	"bytes"
-	"github.com/hedzr/go-socketlib/examples/cmdr/opts/codec"
-	"github.com/hedzr/go-socketlib/examples/cmdr/opts/pkg"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/pkg"
 	"github.com/hedzr/log"
 	"sync/atomic"
 )

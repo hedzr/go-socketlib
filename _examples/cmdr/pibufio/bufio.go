@@ -3,7 +3,7 @@ package pibufio
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/hedzr/go-socketlib/examples/cmdr/opts/codec"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
 	"github.com/hedzr/log"
 	"gopkg.in/hedzr/errors.v3"
 	"io"

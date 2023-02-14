@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/examples/std/impl"
+	"github.com/hedzr/go-socketlib/_examples/std/impl"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"

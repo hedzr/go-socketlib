@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/hedzr/go-socketlib/examples/cmdr/opts/codec/zigzag"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec/zigzag"
 	"io"
 	"math"
 )

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/examples/dns/pi"
+	"github.com/hedzr/go-socketlib/_examples/dns/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"

@@ -13,17 +13,17 @@
 
 WIP. Here is a pre-release version.
 
-- v0.3.0 (WIP)
-  - BREAK: go 1.11 and below is no longer supported.
+- v0.3.0
+  - BREAK: go 1.16.x and below is no longer supported.
   - fixed bugs found.
 
+- v0.2.5
+  - old release
 
 ## Features
 
 - supports TCP, UDP, and Unix socket server/client developing
 - Write your business logical with [protocol.Interceptor](https://github.com/hedzr/go-socketlib/blob/master/tcp/protocol/protocol.go#L22)
-
-
 
 ## Getting Start
 

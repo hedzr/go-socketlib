@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/hedzr/cmdr"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
-	"github.com/hedzr/go-socketlib/examples/cmdr/opts"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
