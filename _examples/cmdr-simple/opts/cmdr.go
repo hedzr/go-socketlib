@@ -19,18 +19,18 @@ func socketLibCmd(root cmdr.OptCmd) {
 		Description("go-socketlib TCO operations...", "").
 		Group("Socket")
 
-	server.AttachToCmdr(tcpCmd, server.WithCmdrPort(1983))
-	client.AttachToCmdr(tcpCmd, client.WithCmdrPort(1983), client.WithCmdrInteractiveCommand(true))
+	server.AttachToCmdrCommand(tcpCmd, server.WithCmdrPort(1983))
+	client.AttachToCmdrCommand(tcpCmd, client.WithCmdrPort(1983), client.WithCmdrInteractiveCommand(true))
 
 	udpCmd := root.NewSubCommand("udp", "udp").
 		Description("go-socketlib UDP operations...", "").
 		Group("Socket")
 
-	server.AttachToCmdr(udpCmd, server.WithCmdrUDPMode(true), server.WithCmdrPort(1984))
-	client.AttachToCmdr(udpCmd, client.WithCmdrUDPMode(true), client.WithCmdrPort(1984))
+	server.AttachToCmdrCommand(udpCmd, server.WithCmdrUDPMode(true), server.WithCmdrPort(1984))
+	client.AttachToCmdrCommand(udpCmd, client.WithCmdrUDPMode(true), client.WithCmdrPort(1984))
 
 	// Cert
 
-	cert.AttachToCmdr(root)
+	cert.AttachToCmdrCommand(root)
 
 }

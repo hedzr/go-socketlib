@@ -5,22 +5,20 @@ import (
 	"github.com/hedzr/go-socketlib/examples/dns/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
-
-	"github.com/hedzr/cmdr-addons/pkg/plugins/trace"
-
-	"github.com/hedzr/log"
-	"github.com/hedzr/logex/logx/logrus"
-	_ "github.com/hedzr/logex/logx/zap"
-	_ "github.com/hedzr/logex/logx/zap/sugar"
+	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
+	// "github.com/hedzr/logex/logx/logrus"
+	// _ "github.com/hedzr/logex/logx/zap"
+	// _ "github.com/hedzr/logex/logx/zap/sugar"
 )
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(logrus.New("debug", false, true)),
-		cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
+		// cmdr.WithLogx(logrus.New("debug", false, true)),
+		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
-		trace.WithTraceEnable(true),
+		// trace.WithTraceEnable(true),
+
 		cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
 			root.FindSubCommand("generate").Hidden = true
 		}),
@@ -55,14 +53,14 @@ func socketLibCmd(root cmdr.OptCmd) {
 	opt2 := server.WithCmdrPort(60053)
 	opt5 := server.WithCmdrPrefixPrefix("dns")
 
-	server.AttachToCmdr(tcpCmd, opt1, opt2, opt5)
+	server.AttachToCmdrCommand(tcpCmd, opt1, opt2, opt5)
 
 	var pic = pi.NewDNSClientInterceptor()
 	ox1 := client.WithCmdrClientProtocolInterceptor(pic)
 	ox2 := client.WithCmdrPort(53)            // get ports configs from config file
 	ox6 := client.WithCmdrPrefixPrefix("dns") // prefix of prefix is used for loading the coap section from config file
 
-	client.AttachToCmdr(tcpCmd, ox1, ox2, ox6)
+	client.AttachToCmdrCommand(tcpCmd, ox1, ox2, ox6)
 
 }
 

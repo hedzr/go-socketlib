@@ -2,26 +2,39 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
+	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	"github.com/hedzr/go-socketlib/examples/cmdr/opts"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
+	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
+	// _ "github.com/hedzr/logex/logx/zap"
+	// _ "github.com/hedzr/logex/logx/zap/sugar"
+)
 
-	"github.com/hedzr/cmdr-addons/pkg/plugins/trace"
-
-	_ "github.com/hedzr/logex/logx/zap"
-	_ "github.com/hedzr/logex/logx/zap/sugar"
+const (
+	defaultBackend = "logrus" // sugar, zap, logrus
+	defaultLevel   = "debug"
 )
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "sugar", "debug"))),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, defaultBackend, defaultLevel, log.WithTimestamp(true)))),
 		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
-		trace.WithTraceEnable(true),
-		cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
-			root.FindSubCommand("generate").Hidden = true
-		}),
+		// trace.WithTraceEnable(true),
+		// attaches `--trace` to root command
+		cmdr.WithXrefBuildingHooks(func(root *cmdr.RootCommand, args []string) {
+			cmdr.NewBool(false).
+				Titles("tr", "trace").
+				Description("enable trace mode for tcp/mqtt send/recv data dump", "").
+				AttachToRoot(root)
+		}, nil),
+
+		// The following codes are unnecessary since v1.9.x:
+		//cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
+		//	root.FindSubCommand("generate").Hidden = true
+		//}),
 
 		//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
 		//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
