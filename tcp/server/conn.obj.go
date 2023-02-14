@@ -142,7 +142,8 @@ func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 		case message == "/quit":
 			fmt.Println("Quitting.")
 			s.WriteString("I'm shutting down now.\n")
-			fmt.Println("< %" + "quit%")
+			fmt.Print("< %")
+			fmt.Println("quit%")
 			s.WriteString("%quit%\n")
 			//os.Exit(0)
 			//s.Close()
