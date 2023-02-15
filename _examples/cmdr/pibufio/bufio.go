@@ -3,13 +3,15 @@ package pibufio
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
-	"github.com/hedzr/log"
-	"gopkg.in/hedzr/errors.v3"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/hedzr/log"
+	"gopkg.in/hedzr/errors.v3"
+
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
 )
 
 const (
@@ -138,8 +140,8 @@ func (s *iobuf) try() (extracted bool) {
 			log.Warnf("iobuf.try's discarding single 0xaa, ReadUvarint() failed: %v", s.err)
 		}
 
-		//length, s.err = binary.ReadUvarint(&s.Buffer)
-		//if s.err == nil {
+		// length, s.err = binary.ReadUvarint(&s.Buffer)
+		// if s.err == nil {
 		//	if s.Buffer.Len() > int(length) {
 		//		data := s.Next(int(length))
 		//		s.chReceiver <- data
@@ -155,12 +157,12 @@ func (s *iobuf) try() (extracted bool) {
 		//	s.err = s.Buffer.UnreadByte()
 		//	break
 		//
-		//} else if s.traceEnabled {
+		// } else if s.traceEnabled {
 		//	// if gapWord (2 bytes) not found, they will be
 		//	// discarded. And we'll step on looking for the
 		//	// next location of the gapWord.
 		//	log.Warnf("iobuf.try's discarding single 0xaa, ReadUvarint() failed: %v", s.err)
-		//}
+		// }
 	}
 
 	if errors.Is(s.err, io.EOF) {
@@ -177,7 +179,7 @@ func (s *iobuf) got(howMany int) (extracted bool) {
 	return
 }
 
-//var internalTmpBuf = make([]byte, 16)
+// var internalTmpBuf = make([]byte, 16)
 
 type PackageExtractor interface {
 	Try(buf *bytes.Buffer)

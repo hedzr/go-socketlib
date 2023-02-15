@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"strings"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
-	"strings"
 )
 
 func New(udpMode bool, config *base.Config, opts ...Opt) error {
@@ -60,15 +62,15 @@ type ciWrapper struct {
 }
 
 func (s *ciWrapper) OnListened(baseCtx context.Context, addr string) {
-	//panic("implement me")
+	// panic("implement me")
 }
 
 func (s *ciWrapper) OnServerReady(ctx context.Context, server log.Logger) {
-	//panic("implement me")
+	// panic("implement me")
 }
 
 func (s *ciWrapper) OnServerClosed(server log.Logger) {
-	//panic("implement me")
+	// panic("implement me")
 }
 
 func (s *ciWrapper) OnConnected(ctx context.Context, c base.Conn) {

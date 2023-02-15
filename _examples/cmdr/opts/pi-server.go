@@ -2,11 +2,13 @@ package opts
 
 import (
 	"context"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/pibufio"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
 	"sync/atomic"
 	"time"
+
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/_examples/cmdr/pibufio"
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 func newServerPI() *piServer {
@@ -35,10 +37,10 @@ func (p *piServer) run() {
 		ticker.Stop()
 	}()
 
-	//if o, ok := p.iobuf.(interface{ SetTraceEnabled(b bool) }); ok {
+	// if o, ok := p.iobuf.(interface{ SetTraceEnabled(b bool) }); ok {
 	//	b := log.GetTraceMode() || log.GetDebugMode()
 	//	o.SetTraceEnabled(b)
-	//}
+	// }
 
 	for {
 		select {
@@ -53,37 +55,37 @@ func (p *piServer) run() {
 }
 
 func (p *piServer) OnListened(baseCtx context.Context, addr string) {
-	//panic("implement me")
+	// panic("implement me")
 	log.Debugf("(pi) onListened at %v...", addr)
 }
 
 func (p *piServer) OnServerReady(ctx context.Context, c log.Logger) {
-	//panic("implement me")
+	// panic("implement me")
 	c.Debugf("(pi) onServerReady...")
 }
 
 func (p *piServer) OnServerClosed(server log.Logger) {
-	//panic("implement me")
+	// panic("implement me")
 	server.Debugf("(pi) onServerClosed...")
 }
 
 func (p *piServer) OnConnected(ctx context.Context, c base.Conn) {
-	//panic("implement me")
+	// panic("implement me")
 	c.Logger().Debugf("(pi) onConnected...")
 }
 
 func (p *piServer) OnClosing(c base.Conn, reason int) {
-	//panic("implement me")
+	// panic("implement me")
 	c.Logger().Debugf("(pi) onClosing...(reason=%v)", reason)
 }
 
 func (p *piServer) OnClosed(c base.Conn, reason int) {
-	//panic("implement me")
+	// panic("implement me")
 	c.Logger().Debugf("(pi) onClosed...(reason=%v)", reason)
 }
 
 func (p *piServer) OnError(ctx context.Context, c base.Conn, err error) {
-	//panic("implement me")
+	// panic("implement me")
 	c.Logger().Debugf("(pi) onError: %v", err)
 }
 
@@ -93,21 +95,21 @@ func (p *piServer) OnReading(ctx context.Context, c base.Conn, data []byte) (pro
 }
 
 func (p *piServer) OnWriting(ctx context.Context, c base.Conn, data []byte) (processed bool, err error) {
-	//panic("implement me")
+	// panic("implement me")
 	return
 }
 
 func (p *piServer) OnUDPReading(ctx context.Context, c log.Logger, packet *base.UdpPacket) (processed bool, err error) {
-	//panic("implement me")
+	// panic("implement me")
 	return
 }
 
 func (p *piServer) OnUDPWriting(ctx context.Context, c log.Logger, packet *base.UdpPacket) (processed bool, err error) {
-	//panic("implement me")
+	// panic("implement me")
 	return
 }
 
 func (p *piServer) onPkgReceived(pkg []byte) {
 	atomic.AddInt64(&p.totalReceived, 1)
-	//log.Debugf("pkg-received (#%v): %v", p.totalReceived, pkg)
+	// log.Debugf("pkg-received (#%v): %v", p.totalReceived, pkg)
 }

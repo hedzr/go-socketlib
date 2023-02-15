@@ -2,10 +2,11 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
-	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
+
+	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	// _ "github.com/hedzr/logex/logx/zap"
 	// _ "github.com/hedzr/logex/logx/zap/sugar"
@@ -32,12 +33,12 @@ func main() {
 		}, nil),
 
 		// The following codes are unnecessary since v1.9.x:
-		//cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
+		// cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
 		//	root.FindSubCommand("generate").Hidden = true
-		//}),
+		// }),
 
-		//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
-		//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
+		// cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
+		// cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
 	); err != nil {
 		cmdr.Logger.Fatalf("error: %+v", err)
 	}

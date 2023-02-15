@@ -15,9 +15,10 @@ import (
 	"time"
 
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
 	"github.com/hedzr/log/trace"
+
+	"github.com/hedzr/go-socketlib/tcp/tls"
 )
 
 type Client struct {
@@ -85,11 +86,11 @@ func WithClientOnDisconnectedFunc(fn OnTcpDisconnectedFunc) ClientOpt {
 	}
 }
 
-//func WithClientLoggerConfig(config *log.LoggerConfig) ClientOpt {
+// func WithClientLoggerConfig(config *log.LoggerConfig) ClientOpt {
 //	return func(client *Client) {
 //		client.Logger = build.New(config)
 //	}
-//}
+// }
 
 func WithClientLogger(l log.Logger) ClientOpt {
 	return func(client *Client) {

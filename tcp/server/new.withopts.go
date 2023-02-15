@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"errors"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 )
 
 func New(config *base.Config, opts ...Opt) (serve ServeFunc, obj *Obj, tlsEnabled bool, err error) {
@@ -58,18 +60,17 @@ func WithServerLogger(logger log.Logger) Opt {
 // "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
 // The Addr method of Listener can be used to discover the chosen
 // port.
-//
 func WithServerNetworkType(typeOfNetwork string) Opt {
 	return func(so *Obj) {
 		so.netType = typeOfNetwork
 	}
 }
 
-//func WithServerPrefixPrefix(prefixPrefixInConfigFile string) Opt {
+// func WithServerPrefixPrefix(prefixPrefixInConfigFile string) Opt {
 //	return func(so *Obj) {
 //		so.prefix = strings.Join([]string{prefixPrefixInConfigFile, "server", "tls"}, ".")
 //	}
-//}
+// }
 
 type Opt func(so *Obj)
 type ServeFunc func(baseCtx context.Context) error

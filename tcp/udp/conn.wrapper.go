@@ -2,9 +2,11 @@ package udp
 
 import (
 	"context"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
 	"net"
+
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 type udpConnWrapper struct {
@@ -36,14 +38,14 @@ func (c *udpConnWrapper) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-//type connWrapper struct {
+// type connWrapper struct {
 //	*Obj
-//}
+// }
 //
-//func (c *connWrapper) Logger() log.Logger {
+// func (c *connWrapper) Logger() log.Logger {
 //	return c.Obj.Logger
-//}
+// }
 //
-//func (c *connWrapper) Close() {
+// func (c *connWrapper) Close() {
 //	_ = c.conn.Close()
-//}
+// }

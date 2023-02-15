@@ -10,10 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
 	"gopkg.in/hedzr/go-ringbuf.v1/fast"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
 )
 
 type Obj struct {
@@ -121,15 +122,15 @@ func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) 
 				Zone: "",
 			}
 
-			//ctx, cancel := context.WithDeadline(baseCtx, time.Now().Add(10*time.Second))
-			//defer cancel()
+			// ctx, cancel := context.WithDeadline(baseCtx, time.Now().Add(10*time.Second))
+			// defer cancel()
 
 			s.conn, err = net.DialUDP(config.Network, srcAddr, s.addr)
 			if err == nil {
 				// s.connected = true
 				s.baseConn = &udpConnWrapper{s, s.conn, s.Logger}
 				s.Debugf("Connecting OK: %v / %v", config.Addr, config.Uri)
-				//err = s.conn.SetWriteBuffer(8192)
+				// err = s.conn.SetWriteBuffer(8192)
 				if s.ProtocolInterceptor() != nil {
 					s.ProtocolInterceptor().OnConnected(baseCtx, s.baseConn)
 				}
@@ -141,7 +142,7 @@ func (s *Obj) Connect(baseCtx context.Context, config *base.Config) (err error) 
 
 // Create a server listener via net.ListenUDP()
 func (s *Obj) Create(baseCtx context.Context, network string, config *base.Config) (err error) {
-	//var udpConn *net.UDPConn
+	// var udpConn *net.UDPConn
 	var sip, sport string
 	var port int
 	sip, sport, err = net.SplitHostPort(config.Addr)
@@ -293,7 +294,7 @@ func (s *Obj) doWrite(ctx context.Context, packet *base.UdpPacket) (err error) {
 		return
 	}
 
-	//s.conn.SetWriteBuffer(33)
+	// s.conn.SetWriteBuffer(33)
 	s.Tracef("[udp.doWrite] WriteToUDP: %v / %v", string(packet.Data), packet)
 	_, err = s.conn.WriteToUDP(packet.Data, packet.RemoteAddr)
 	if err != nil {
@@ -318,10 +319,10 @@ func (s *Obj) writePump(ctx context.Context) {
 		s.wg.Done()
 	}()
 
-	//// raise the connected event now
-	//if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
+	// // raise the connected event now
+	// if s.InterceptorHolder != nil && s.InterceptorHolder.ProtocolInterceptor() != nil {
 	//	s.InterceptorHolder.ProtocolInterceptor().OnConnected(ctx, s.baseConn)
-	//}
+	// }
 
 	for err == nil {
 		select {

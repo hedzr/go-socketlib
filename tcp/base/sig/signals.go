@@ -5,11 +5,12 @@
 package sig
 
 import (
-	"gopkg.in/hedzr/errors.v3"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+
+	"gopkg.in/hedzr/errors.v3"
 )
 
 // ServeSignals calls handlers for system signals.

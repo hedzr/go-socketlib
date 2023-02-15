@@ -5,8 +5,9 @@
 package tls
 
 import (
-	"github.com/hedzr/log"
 	"time"
+
+	"github.com/hedzr/log"
 )
 
 // CmdrTlsConfig wraps the certificates.

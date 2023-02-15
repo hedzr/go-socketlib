@@ -4,14 +4,16 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 	"io"
 	"net"
 	"os"
 	"regexp"
 	"time"
+
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
 )
 
 func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) {

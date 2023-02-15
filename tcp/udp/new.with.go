@@ -4,10 +4,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/go-socketlib/tcp/protocol"
 	"github.com/hedzr/log"
 	"gopkg.in/hedzr/go-ringbuf.v1/fast"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/protocol"
 )
 
 type Opt func(*Obj)

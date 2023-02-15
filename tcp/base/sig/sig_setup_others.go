@@ -1,5 +1,6 @@
 // Copyright © 2019 Hedzr Yeh.
 
+//go:build nacl || plan9
 // +build nacl plan9
 
 package sig

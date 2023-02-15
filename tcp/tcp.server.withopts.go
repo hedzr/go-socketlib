@@ -7,8 +7,9 @@ package tcp
 import (
 	log2 "log"
 
-	"github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/tls"
 )
 
 func WithServerOnProcessFunc(onProcess OnTcpServerProcessFunc) ServerOpt {
@@ -56,11 +57,11 @@ func WithTlsConfig(s *tls.CmdrTlsConfig) ServerOpt {
 	}
 }
 
-//func WithLoggerConfig(config *log.LoggerConfig) ServerOpt {
+// func WithLoggerConfig(config *log.LoggerConfig) ServerOpt {
 //	return func(server *Server) {
 //		server.Logger = build.New(config)
 //	}
-//}
+// }
 
 func WithLogger(l log.Logger) ServerOpt {
 	return func(server *Server) {

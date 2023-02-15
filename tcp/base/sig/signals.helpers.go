@@ -5,9 +5,10 @@
 package sig
 
 import (
-	"github.com/hedzr/cmdr"
 	"net"
 	"os"
+
+	"github.com/hedzr/cmdr"
 )
 
 // IsRunningInDemonizedMode returns true if you are running under demonized mode.

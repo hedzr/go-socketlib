@@ -2,13 +2,14 @@ package codec
 
 import (
 	"encoding/binary"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec/zigzag"
 	"reflect"
 	"testing"
+
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec/zigzag"
 )
 
 func TestVarintU(t *testing.T) {
-	//var src uint64 = 789
+	// var src uint64 = 789
 	buf := make([]byte, 11)
 	var tgt uint64
 
@@ -44,7 +45,7 @@ func TestVarintU(t *testing.T) {
 }
 
 func TestVarint(t *testing.T) {
-	//var src uint64 = 789
+	// var src uint64 = 789
 	buf := make([]byte, 11)
 	var tgt int64
 
@@ -81,7 +82,7 @@ func TestVarint(t *testing.T) {
 }
 
 func TestZigZaggedVarint(t *testing.T) {
-	//var src uint64 = 789
+	// var src uint64 = 789
 	buf := make([]byte, 11)
 	var tgt uint64
 
@@ -92,15 +93,15 @@ func TestZigZaggedVarint(t *testing.T) {
 		{1, []byte{2}},
 		{2, []byte{4}},
 		{3, []byte{6}},
-		//{4, []byte{4}},
-		//{5, []byte{5}},
-		//{6, []byte{6}},
-		//{127, []byte{127}},
-		//{128, []byte{128, 1}},
-		//{255, []byte{255, 1}},
-		//{256, []byte{128, 2}},
-		//{789, []byte{149, 6}},
-		//{789123654, []byte{198, 164, 164, 248, 2}},
+		// {4, []byte{4}},
+		// {5, []byte{5}},
+		// {6, []byte{6}},
+		// {127, []byte{127}},
+		// {128, []byte{128, 1}},
+		// {255, []byte{255, 1}},
+		// {256, []byte{128, 2}},
+		// {789, []byte{149, 6}},
+		// {789123654, []byte{198, 164, 164, 248, 2}},
 		{-1, []byte{1}},
 		{-2, []byte{3}},
 		{-3, []byte{5}},
@@ -125,9 +126,9 @@ func TestZigZaggedVarint(t *testing.T) {
 }
 
 func TestNumEncodeDecode(t *testing.T) {
-	//var src uint64 = 789
-	//buf := make([]byte, 11)
-	//var tgt uint64
+	// var src uint64 = 789
+	// buf := make([]byte, 11)
+	// var tgt uint64
 
 	for _, c := range []struct {
 		src int64
@@ -136,15 +137,15 @@ func TestNumEncodeDecode(t *testing.T) {
 		{1, []byte{2}},
 		{2, []byte{4}},
 		{3, []byte{6}},
-		//{4, []byte{4}},
-		//{5, []byte{5}},
-		//{6, []byte{6}},
-		//{127, []byte{127}},
-		//{128, []byte{128, 1}},
-		//{255, []byte{255, 1}},
-		//{256, []byte{128, 2}},
-		//{789, []byte{149, 6}},
-		//{789123654, []byte{198, 164, 164, 248, 2}},
+		// {4, []byte{4}},
+		// {5, []byte{5}},
+		// {6, []byte{6}},
+		// {127, []byte{127}},
+		// {128, []byte{128, 1}},
+		// {255, []byte{255, 1}},
+		// {256, []byte{128, 2}},
+		// {789, []byte{149, 6}},
+		// {789123654, []byte{198, 164, 164, 248, 2}},
 		{-1, []byte{1}},
 		{-2, []byte{3}},
 		{-3, []byte{5}},

@@ -9,10 +9,11 @@ import (
 	"strconv"
 
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/base/sig"
 	"github.com/hedzr/log"
 	"github.com/hedzr/log/dir"
 	"gopkg.in/hedzr/errors.v3"
+
+	"github.com/hedzr/go-socketlib/tcp/base/sig"
 )
 
 func makePidFS(prefixInCommandLine, prefixInConfigFile, defaultDir string) *pidFileStruct {

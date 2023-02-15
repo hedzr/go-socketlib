@@ -2,8 +2,8 @@ package pkg
 
 func NewBuilder() Builder {
 	b := &pkgBuilder{
-		//reservedBytes: reservedBytes,
-		//leadingBytes:  make([]byte, reservedBytes),
+		// reservedBytes: reservedBytes,
+		// leadingBytes:  make([]byte, reservedBytes),
 	}
 	return b.New()
 }

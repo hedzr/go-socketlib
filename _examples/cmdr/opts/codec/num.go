@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec/zigzag"
 	"io"
 	"math"
+
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec/zigzag"
 )
 
 func EncodeVarInt64U(x uint64) []byte {
@@ -47,7 +48,7 @@ func EncodeVarInt32(x int32) []byte { return EncodeVarInt64U(zigzag.Encode(int64
 func EncodeVarInt16(x int16) []byte { return EncodeVarInt64U(zigzag.Encode(int64(x))) }
 
 func DecodeVarInt(data []byte) (x int64, nRead int, smallOrOverflow, ok bool) {
-	//var zz uint64
+	// var zz uint64
 	x, nRead = binary.Varint(data)
 	if nRead == 0 {
 		smallOrOverflow = true

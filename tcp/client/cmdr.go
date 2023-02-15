@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hedzr/cmdr"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 )
@@ -152,11 +153,11 @@ func defaultUdpMainLoop(ctx context.Context, conn base.Conn, done chan bool, con
 	var err error
 
 	_, err = conn.RawWrite(ctx, []byte("hello"))
-	//uo.WriteTo(nil, []byte("hello"))
+	// uo.WriteTo(nil, []byte("hello"))
 	config.Logger.Debugf("'hello' wrote: %v", err)
 
 	if wr, ok := conn.(base.CachedUDPWriter); ok {
-		//_, err = uo.WriteThrough([]byte("world"))
+		// _, err = uo.WriteThrough([]byte("world"))
 		wr.WriteTo(nil, []byte("world"))
 		config.Logger.Debugf("'world' wrote: %v", err)
 	}
@@ -165,9 +166,9 @@ func defaultUdpMainLoop(ctx context.Context, conn base.Conn, done chan bool, con
 	config.PressEnterToExit()
 	// _, _ = uo.WriteThrough([]byte("hello"))
 
-	//n, data := 0, make([]byte, 1024)
-	//n, err = conn.Read(data)
-	//fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
+	// n, data := 0, make([]byte, 1024)
+	// n, err = conn.Read(data)
+	// fmt.Printf("read %s from <%s>\n", data[:n], conn.RemoteAddr())
 }
 
 func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
@@ -241,7 +242,7 @@ func (b *builder) attachTcpClientFlags(theClient cmdr.OptCmd) {
 		// Group("TLS").
 		AttachTo(theClient)
 
-	//cmdr.NewBool().
+	// cmdr.NewBool().
 	//	Titles("dry-run", "dr", "dr").
 	//	Description("dry-run mode, no connect and send/recv").
 	//	Group("Test").

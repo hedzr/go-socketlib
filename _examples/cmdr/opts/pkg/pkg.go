@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+
 	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
 )
 

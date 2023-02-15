@@ -9,13 +9,13 @@ import (
 
 // EncodeStruct serializes a simple flat struct as a byte slice.
 //
-//     type ts struct {
-//         Pi  float64
-//         I64 int64
-//     }
-//     c := ts{3.141592653589794, -1}
-//     buf := EncodeStruct(c)
-//     buf := EncodeStruct(&c)
+//	type ts struct {
+//	    Pi  float64
+//	    I64 int64
+//	}
+//	c := ts{3.141592653589794, -1}
+//	buf := EncodeStruct(c)
+//	buf := EncodeStruct(&c)
 func EncodeStruct(s interface{}) []byte {
 	var buf bytes.Buffer
 	err := binary.Write(&buf, ByteOrder, s)
@@ -27,8 +27,8 @@ func EncodeStruct(s interface{}) []byte {
 
 // DecodeStruct deserializes the byte slices into a simple flat struct.
 //
-//     var tgt *ts = new(ts)
-//     nRead, err := DecodeStruct(buf, tgt)
+//	var tgt *ts = new(ts)
+//	nRead, err := DecodeStruct(buf, tgt)
 //
 // The simple flat struct: without pointer, string fields.
 // *anotherStruct, map, string are invalid field types.

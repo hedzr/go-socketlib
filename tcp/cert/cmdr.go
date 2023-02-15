@@ -24,7 +24,7 @@ func certSubCommands(certOptCmd cmdr.OptCmd) {
 		Description("[NOT YET] create NEW CA certificates").
 		Action(caCreate).
 		AttachTo(caCmd)
-	//log.Println(caCreateCmd)
+	// log.Println(caCreateCmd)
 
 	// certCmd := certOptCmd.NewSubCommand().
 	// 	Titles("", "cert").
@@ -35,7 +35,7 @@ func certSubCommands(certOptCmd cmdr.OptCmd) {
 		Description("create NEW certificates").
 		Action(certCreate).
 		AttachTo(certOptCmd)
-	//log.Println(certCreateCmd)
+	// log.Println(certCreateCmd)
 
 	cmdr.NewStringSlice().Titles("hostnames", "hns").
 		Description("Comma-separated hostname list and/or IPs to generate a certificate for").

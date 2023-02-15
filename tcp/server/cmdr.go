@@ -6,9 +6,10 @@ package server
 
 import (
 	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 )
 
 type CmdrOpt func(*builder)
@@ -183,7 +184,7 @@ func AttachToCmdrCommand(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		Description("enable TLS mode").
 		Group("TLS").
 		AttachTo(theServer)
-	//theServer.NewFlagV(false, "enable-tls", "tls").
+	// theServer.NewFlagV(false, "enable-tls", "tls").
 	//	Description("enable TLS mode").
 	//	Group("TLS")
 

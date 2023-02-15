@@ -26,7 +26,7 @@ func compressByFlate(data []byte) (result []byte, err error) {
 		return
 	}
 	if _, err = w.Write(data); err == nil {
-		//if _, err := io.Copy(w, strings.NewReader(data)); err == nil {}
+		// if _, err := io.Copy(w, strings.NewReader(data)); err == nil {}
 		if err = w.Close(); err == nil {
 			result = b.Bytes()
 		}

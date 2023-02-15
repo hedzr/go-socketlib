@@ -8,7 +8,7 @@ import (
 type ts struct {
 	Pi  float64
 	I64 int64
-	//Str string
+	// Str string
 }
 
 func TestStructEncodeDecode(t *testing.T) {

@@ -2,13 +2,15 @@ package client
 
 import (
 	"context"
+	"net"
+	"sync"
+
 	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tcp/udp"
-	"github.com/hedzr/log"
-	"net"
-	"sync"
 )
 
 func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err error) {
@@ -68,9 +70,9 @@ func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error
 		mainLoop = co.mainLoop
 	}
 	mainLoop(context.Background(), co.AsBaseConn(), done, config)
-	//cmdr.TrapSignalsEnh(done, func(s os.Signal) {
+	// cmdr.TrapSignalsEnh(done, func(s os.Signal) {
 	//	config.Logger.Debugf("signal[%v] caught and exiting this program", s)
-	//})()
+	// })()
 	return
 }
 

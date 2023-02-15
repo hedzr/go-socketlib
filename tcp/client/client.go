@@ -7,18 +7,20 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/log"
 	"net"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
+	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 )
 
-//const prefixSuffix = "client.tls"
+// const prefixSuffix = "client.tls"
 const defaultNetType = "tcp"
 
 type CommandAction func(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error)
@@ -30,7 +32,7 @@ type BuildPackageFunc func(i, threadId int, destAddr string) []byte
 
 func DefaultCmdrCommandAction(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	//config.BuildLogger()
+	// config.BuildLogger()
 	config.Logger = cmdr.Logger
 	if err = config.BuildAddr(); err != nil {
 		config.Logger.Fatalf("%v", err)
@@ -46,9 +48,9 @@ func DefaultCmdrCommandAction(cmd *cmdr.Command, args []string, mainLoop MainLoo
 }
 
 func DefaultCommandAction(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
-	//if cmd != nil {
+	// if cmd != nil {
 	//	config = base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	//} else
+	// } else
 	if config == nil {
 		panic("config MUST be specified")
 	}
@@ -69,7 +71,7 @@ func DefaultCommandAction(config *base.Config, mainLoop MainLoop, opts ...Opt) (
 
 func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPrefix string, opts ...Opt) (err error) {
 	config := base.NewConfigFromCmdrCommand(false, prefixPrefix, cmd)
-	//config.BuildLogger()
+	// config.BuildLogger()
 	config.Logger = cmdr.Logger
 	if err = config.BuildAddr(); err != nil {
 		config.Logger.Fatalf("%v", err)
@@ -82,10 +84,10 @@ func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPre
 
 	// tcp, unix
 
-	//if cmdr.GetBoolRP(config.PrefixInCommandLine, "dry-run") {
+	// if cmdr.GetBoolRP(config.PrefixInCommandLine, "dry-run") {
 	//	cmdr.DebugOutputTildeInfo(true)
 	//	return
-	//}
+	// }
 
 	done := make(chan bool, 1)
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(config.PrefixInCommandLine, "interactive")) {
@@ -140,7 +142,7 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 	co := newClientObj(conn, logger, opts...)
 	go co.readConnection(done)
 
-	//var buildPackage func(i int, destAddr, threadId string) []byte
+	// var buildPackage func(i int, destAddr, threadId string) []byte
 	for i := 0; i < maxTimes; i++ {
 		data := mqttConnectPkg
 		if co.buildPackage != nil {
@@ -174,7 +176,7 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 	fmt.Printf("Connecting to %s...\n", dest)
 
 	var conn net.Conn
-	//conn, err = net.Dial("tcp", dest)
+	// conn, err = net.Dial("tcp", dest)
 
 	prefix := "tcp.client.tls"
 	// prefixCLI := "tcp.client"
@@ -236,10 +238,10 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 // 	}
 // }
 
-//func randRandSeq() string {
+// func randRandSeq() string {
 //	n := rand.Intn(64)
 //	return tool.RandSeqln(n)
-//}
+// }
 
 var mqttConnectPkg = []byte{
 	16, 35,
@@ -249,15 +251,15 @@ var mqttConnectPkg = []byte{
 	99, 90, 78,
 }
 
-//var mqttSubsribePkg = []byte{
+// var mqttSubsribePkg = []byte{
 //	130, 12,
 //	0, 1,
 //	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
-//}
+// }
 //
-//var mqttSubscribe2TopicsPkg = []byte{
+// var mqttSubscribe2TopicsPkg = []byte{
 //	130, 22,
 //	0, 2,
 //	0, 7, 116, 111, 112, 105, 99, 48, 49, 0,
 //	0, 7, 116, 111, 112, 105, 99, 48, 50, 0,
-//}
+// }

@@ -2,6 +2,7 @@ package codec
 
 import (
 	"bytes"
+
 	"gopkg.in/hedzr/errors.v3"
 )
 
@@ -39,8 +40,8 @@ func DecodeString(data []byte) (str string, nRead int, err error) {
 			str = string(data[pos:nRead])
 		} else {
 			nRead += n
-			//y, n, _, ok = DecodeVarIntU(data[nRead:])
-			//if ok {
+			// y, n, _, ok = DecodeVarIntU(data[nRead:])
+			// if ok {
 			//	nRead += n
 			r, n, err = decompressByDeflate(data[nRead:])
 			if err == nil {

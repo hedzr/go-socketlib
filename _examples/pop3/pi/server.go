@@ -2,9 +2,11 @@ package pi
 
 import (
 	"context"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 )
 
 func NewDNSInterceptor() protocol.Interceptor {

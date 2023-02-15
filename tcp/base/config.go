@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/hedzr/cmdr"
-	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 	"gopkg.in/hedzr/errors.v3"
+
+	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 )
 
 type Config struct {
@@ -38,7 +39,7 @@ func NewConfigFromCmdrCommand(isServer bool, prefixPrefix string, cmd *cmdr.Comm
 
 	// tcp, udp, unix, ...
 	netType := cmdr.GetStringRP(prefixCLI, "network", defaultNetType)
-	//Network = cmdr.GetStringRP(Network + "." + prefixSuffix, "network", Network)
+	// Network = cmdr.GetStringRP(Network + "." + prefixSuffix, "network", Network)
 
 	loggerConfig := cmdr.NewLoggerConfig()
 
@@ -108,14 +109,14 @@ func (c *Config) BuildServerAddr() (err error) {
 			return
 		}
 	}
-	//if host == "" {
+	// if host == "" {
 	//	host = "0.0.0.0"
 	//	// forceIPv6 make all IPv6 ip-addresses of this PC are listened, instead of its IPv4 addresses
 	//	const forceIPv6 = false
 	//	if forceIPv6 {
 	//		host = "[::]"
 	//	}
-	//}
+	// }
 	c.Addr = net.JoinHostPort(host, port)
 	c.UriBase = cmdr.GetStringRP(c.PrefixInConfigFile, "base-uri")
 	return
@@ -131,7 +132,7 @@ func (c *Config) BuildAddr() (err error) {
 	}
 	c.UriBase = c.Addr
 
-	host = c.Addr //ip := net.ParseIP(host)
+	host = c.Addr // ip := net.ParseIP(host)
 	if !strings.Contains(host, ":") {
 		host = net.JoinHostPort(host, "0")
 	}

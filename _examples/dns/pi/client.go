@@ -2,9 +2,11 @@ package pi
 
 import (
 	"context"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
-	"github.com/hedzr/log"
 )
 
 func NewDNSClientInterceptor() protocol.ClientInterceptor {
@@ -15,7 +17,7 @@ type dnsClient struct {
 }
 
 func (s *dnsClient) OnConnected(ctx context.Context, c base.Conn) {
-	//panic("implement me")
+	// panic("implement me")
 }
 
 func (s *dnsClient) OnClosing(c base.Conn, reason int) {

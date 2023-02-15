@@ -8,15 +8,15 @@ import (
 	"github.com/hedzr/log"
 )
 
-//import (
+// import (
 //	"github.com/hedzr/go-socketlib/logger"
-//)
+// )
 //
-//type base struct{ logger.Base }
+// type base struct{ logger.Base }
 //
-//func newBase(tag string) base {
+// func newBase(tag string) base {
 //	return base{Base: logger.Base{Tag: tag}}
-//}
+// }
 
 type base struct {
 	log.Logger

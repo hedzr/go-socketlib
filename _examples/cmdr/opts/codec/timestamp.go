@@ -39,19 +39,19 @@ func formatTimestamp(t time.Time) string {
 
 func EncodeTimestamp15bytes(ts *time.Time) (r []byte, err error) {
 	r, err = ts.MarshalBinary()
-	//if err != nil {
+	// if err != nil {
 	//	log.Errorf("cannot time.Time::MarshalBinary() on %v: %v", ts, err)
-	//}
-	//return r
+	// }
+	// return r
 	return
 }
 
 func DecodeTimestamp15bytes(data []byte) (ts *time.Time, err error) {
 	ts = new(time.Time)
-	//if err = ts.UnmarshalBinary(data); err != nil {
+	// if err = ts.UnmarshalBinary(data); err != nil {
 	//	log.Errorf("cannot time.Time::UnmarshalBinary(%v): %v", data, err)
 	//	ts = nil
-	//}
+	// }
 	err = ts.UnmarshalBinary(data)
 	return
 }

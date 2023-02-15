@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
 	"net"
+
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 type connWrapper struct {

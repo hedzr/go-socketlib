@@ -2,8 +2,9 @@ package base
 
 import (
 	"context"
-	"github.com/hedzr/log"
 	"net"
+
+	"github.com/hedzr/log"
 )
 
 type Conn interface {

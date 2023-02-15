@@ -3,11 +3,12 @@
 package sig
 
 import (
-	"gopkg.in/hedzr/errors.v3"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+
+	"gopkg.in/hedzr/errors.v3"
 )
 
 func reloadHandler(sig os.Signal) error {

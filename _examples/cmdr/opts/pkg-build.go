@@ -2,10 +2,12 @@ package opts
 
 import (
 	"bytes"
+	"sync/atomic"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
 	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/pkg"
-	"github.com/hedzr/log"
-	"sync/atomic"
 )
 
 func buildPkg(i, threadId int, destAddr string) (data []byte) {
