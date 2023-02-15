@@ -2,9 +2,10 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
+
+	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	// _ "github.com/hedzr/logex/logx/zap"
 	// _ "github.com/hedzr/logex/logx/zap/sugar"
@@ -12,7 +13,7 @@ import (
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "sugar", "debug"))),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "logrus", "debug"))),
 		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
@@ -22,8 +23,8 @@ func main() {
 			root.FindSubCommand("generate").Hidden = true
 		}),
 
-		//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
-		//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
+		// cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
+		// cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
 	); err != nil {
 		cmdr.Logger.Fatalf("error: %+v", err)
 	}
