@@ -6,15 +6,15 @@ package server
 
 import (
 	"context"
-	"github.com/hedzr/cmdr"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
 	"os"
+
+	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 func newServer(config *base.Config, preferLogger log.Logger, opts ...Opt) (serve ServeFunc, so *Obj, tlsEnabled bool, err error) {
-	// var logger log.Logger
-	// logger = build.New(config.LoggerConfig)
 	so = newServerObj(config)
 
 	for _, opt := range opts {
@@ -80,11 +80,13 @@ func newServer(config *base.Config, preferLogger log.Logger, opts ...Opt) (serve
 
 	}
 
-	serve = so.Serve
+	serve = func(baseCtx context.Context) error {
+		return so.Serve(baseCtx)
+	}
 	return
 }
 
-//const prefixSuffix = "server.tls"
+// const prefixSuffix = "server.tls"
 const defaultNetType = "tcp"
 
 type CommandAction func(cmd *cmdr.Command, args []string, prefixPrefix string, opts ...Opt) (err error)
@@ -107,8 +109,8 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 	}
 
 	go func() {
-		baseCtx := context.Background()
-		
+		baseCtx := context.WithValue(context.Background(), CTX_SERVER_OBJECT_KEY, so)
+
 		so.protocolInterceptor.OnListened(baseCtx, config.Addr)
 		if tlsEnabled {
 			so.Printf("Listening on %s with TLS enabled.", config.Addr)

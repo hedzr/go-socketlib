@@ -3,15 +3,20 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
 	"github.com/hedzr/go-socketlib/tcp/udp"
-	"github.com/hedzr/log"
-	"net"
-	"strings"
-	"time"
 )
+
+const CTX_SERVER_OBJECT_KEY = "server-object"
+const CTX_CONN_KEY = "conn"
 
 type Obj struct {
 	ReadTimeout  time.Duration
@@ -46,9 +51,9 @@ func newServerObj(config *base.Config) (s *Obj) {
 		netType:      defaultNetType,
 		config:       config,
 	}
-	//if s.Logger == nil {
+	// if s.Logger == nil {
 	//	s.Logger = sugar.New("debug", false, true)
-	//}
+	// }
 	return
 }
 
@@ -69,10 +74,10 @@ func (s *Obj) WithLogger(logger log.Logger) *Obj {
 	return s
 }
 
-//func (s *Obj) WithTlsConfigInitializer(fn func(config *tls2.CmdrTlsConfig)) *Obj {
+// func (s *Obj) WithTlsConfigInitializer(fn func(config *tls2.CmdrTlsConfig)) *Obj {
 //	s.tlsConfigInitializer = fn
 //	return s
-//}
+// }
 
 func (s *Obj) ProtocolInterceptor() protocol.Interceptor {
 	return s.protocolInterceptor
@@ -162,13 +167,13 @@ func (s *Obj) serverBuildListener(baseCtx context.Context) (listener net.Listene
 }
 
 func (s *Obj) Serve(baseCtx context.Context) (err error) {
-	//for {
+	// for {
 	//	_, err := s.Accept()
 	//	if err != nil {
 	//		s.logger.Printf("Some connection error: %s\n", err)
 	//		continue
 	//	}
-	//}
+	// }
 
 	// baseCtx := context.Background()
 	ctx, cancel := context.WithCancel(baseCtx)
@@ -178,13 +183,6 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 		cancel()
 		s.Close()
 	}()
-
-	if s.protocolInterceptor != nil {
-		defer func() {
-			s.protocolInterceptor.OnServerClosed(s)
-		}()
-		s.protocolInterceptor.OnServerReady(ctx, s)
-	}
 
 	err = executors[s.isUDP()](s, ctx)
 	return
@@ -196,6 +194,14 @@ var executors = map[bool]func(s *Obj, ctx context.Context) (err error){
 }
 
 func udpExecutor(s *Obj, ctx context.Context) (err error) {
+	ctx = context.WithValue(ctx, CTX_CONN_KEY, s.udpConn)
+	if s.protocolInterceptor != nil {
+		defer func() {
+			s.protocolInterceptor.OnServerClosed(s)
+		}()
+		s.protocolInterceptor.OnServerReady(ctx, s)
+	}
+
 	err = s.udpConn.Serve(ctx)
 	if err != nil {
 		s.Errorf("UDP serve failed: %v", err)
@@ -207,6 +213,14 @@ func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 	for {
 		conn, e := s.listener.Accept()
 		s.Tracef("...listener.Accept: err=%v", err)
+
+		ctx = context.WithValue(ctx, CTX_CONN_KEY, conn)
+		if s.protocolInterceptor != nil {
+			defer func() {
+				s.protocolInterceptor.OnServerClosed(s)
+			}()
+			s.protocolInterceptor.OnServerReady(ctx, s)
+		}
 
 		select {
 		case <-globalExitCh:
@@ -229,9 +243,9 @@ func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 		var co Connection
 		co = s.newConnection(ctx, conn)
 		go co.HandleConnection(ctx)
-		//c := srv.newConn(rw)
-		//c.setState(c.rwc, StateNew) // before Serve can return
-		//go c.serve(ctx)
+		// c := srv.newConn(rw)
+		// c.setState(c.rwc, StateNew) // before Serve can return
+		// go c.serve(ctx)
 	}
 	return
 }
