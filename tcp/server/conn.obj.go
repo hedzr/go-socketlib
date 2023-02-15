@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/hedzr/go-socketlib/tcp/base"
-	"github.com/hedzr/log"
 	"net"
 	"sync/atomic"
 	"time"
+
+	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 type Connection interface {
@@ -18,10 +20,10 @@ type Connection interface {
 	// HandleConnection is used by serverObj
 	HandleConnection(ctx context.Context)
 
-	//// WriteString send the string to the writing queue
-	//WriteString(message string)
-	//// Write send the buffer to the writing queue
-	//Write(message []byte)
+	// // WriteString send the string to the writing queue
+	// WriteString(message string)
+	// // Write send the buffer to the writing queue
+	// Write(message []byte)
 }
 
 type connectionObj struct {
@@ -30,8 +32,8 @@ type connectionObj struct {
 	conn      net.Conn
 	wrCh      chan []byte
 	closeErr  error
-	//exitCh    chan struct{}
-	//logger    logx.Logger
+	// exitCh    chan struct{}
+	// logger    logx.Logger
 }
 
 func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connection) {
@@ -40,8 +42,8 @@ func newConnObj(ctx context.Context, serverObj *Obj, conn net.Conn) (s Connectio
 		uid:       atomic.AddUint64(&serverObj.uidConn, 1),
 		conn:      conn,
 		wrCh:      make(chan []byte, 256),
-		//exitCh:    make(chan struct{}),
-		//logger:    serverObj.logger,
+		// exitCh:    make(chan struct{}),
+		// logger:    serverObj.logger,
 	}
 	s = co
 	return
@@ -60,7 +62,7 @@ func (s *connectionObj) Close() {
 		s.conn = nil
 	}
 	close(s.wrCh)
-	//close(s.exitCh)
+	// close(s.exitCh)
 	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
 		sspi.OnClosed(s, 0)
 	}
@@ -81,8 +83,12 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 
 	go s.handleWriteRequests(ctx)
 
+	s.loopDispatchReadingMessages(ctx)
+}
+
+func (s *connectionObj) loopDispatchReadingMessages(ctx context.Context) {
 	scanner := bufio.NewScanner(s.conn)
-	//scanner.Split(bufio.ScanWords)
+	// scanner.Split(bufio.ScanWords)
 	scanner.Split(scanAA55)
 	for {
 		ok := scanner.Scan()
@@ -99,7 +105,13 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 		default:
 		}
 
-		s.handleMessage(ctx, scanner.Bytes())
+		data := scanner.Bytes()
+		if len(data) == 0 {
+			time.Sleep(time.Millisecond)
+			continue
+		}
+
+		s.handleMessage(ctx, data)
 	}
 }
 
@@ -145,8 +157,8 @@ func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
 			fmt.Print("< %")
 			fmt.Println("quit%")
 			s.WriteString("%quit%\n")
-			//os.Exit(0)
-			//s.Close()
+			// os.Exit(0)
+			// s.Close()
 			s.serverObj.RequestShutdown()
 
 		default:
