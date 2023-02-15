@@ -2,8 +2,10 @@ package impl
 
 import (
 	"context"
-	"github.com/hedzr/go-socketlib/tcp/base"
+
 	"github.com/hedzr/log"
+
+	"github.com/hedzr/go-socketlib/tcp/base"
 )
 
 func NewServerInterceptor() *serverPI {
@@ -18,7 +20,7 @@ func (pi *serverPI) SetLogger(logger log.Logger) {
 	pi.Logger = logger
 }
 
-func (pi *serverPI) OnListened(ctx context.Context, c base.Conn) {
+func (pi *serverPI) OnListened(ctx context.Context, addr string) {
 
 }
 

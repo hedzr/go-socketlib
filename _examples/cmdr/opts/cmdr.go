@@ -15,9 +15,10 @@ func socketLibCmd(root cmdr.OptCmd) {
 
 	// TCP
 
-	tcpCmd := root.NewSubCommand("tcp", "t", "socketlib").
+	tcpCmd := cmdr.NewSubCmd().Titles("tcp", "t", "socketlib").
 		Description("go-socketlib TCO operations...", "").
-		Group("Socket")
+		Group("Socket").
+		AttachTo(root)
 
 	server.AttachToCmdrCommand(tcpCmd,
 		server.WithCmdrPort(1983),
@@ -32,9 +33,10 @@ func socketLibCmd(root cmdr.OptCmd) {
 
 	// UDP
 
-	udpCmd := root.NewSubCommand("udp", "u").
+	udpCmd := cmdr.NewSubCmd().Titles("udp", "u").
 		Description("go-socketlib UDP operations...", "").
-		Group("Socket")
+		Group("Socket").
+		AttachTo(root)
 
 	server.AttachToCmdrCommand(udpCmd,
 		server.WithCmdrUDPMode(true),

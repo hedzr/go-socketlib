@@ -3,23 +3,25 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/hedzr/cmdr"
+	"github.com/hedzr/log"
+
 	"github.com/hedzr/go-socketlib/_examples/std/impl"
 	"github.com/hedzr/go-socketlib/tcp/base"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
 	tls2 "github.com/hedzr/go-socketlib/tcp/tls"
-	"github.com/hedzr/log"
-	"os"
 )
 
 var (
 	clientMode = flag.Bool("client", false, "server (false) or client (true)")
-	//host           = flag.String("host", "localhost", "listening host")
-	//port           = flag.Int("port", 50001, "listening port")
-	//reg            = flag.String("reg", "localhost:32379", "register etcd address")
-	//count          = flag.Int("count", 3, "instance's count")
-	//connectTimeout = flag.Duration("connect-timeout", 5*time.Second, "connect timeout")
+	// host           = flag.String("host", "localhost", "listening host")
+	// port           = flag.Int("port", 50001, "listening port")
+	// reg            = flag.String("reg", "localhost:32379", "register etcd address")
+	// count          = flag.Int("count", 3, "instance's count")
+	// connectTimeout = flag.Duration("connect-timeout", 5*time.Second, "connect timeout")
 )
 
 func main() {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/hedzr/cmdr"
+
 	"github.com/hedzr/go-socketlib/_examples/dns/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
@@ -23,8 +24,8 @@ func main() {
 			root.FindSubCommand("generate").Hidden = true
 		}),
 
-		//cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
-		//cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
+		// cmdr.WithUnknownOptionHandler(onUnknownOptionHandler),
+		// cmdr.WithUnhandledErrorHandler(onUnhandledErrorHandler),
 	); err != nil {
 		cmdr.Logger.Fatalf("error: %+v", err)
 	}
@@ -45,8 +46,9 @@ func socketLibCmd(root cmdr.OptCmd) {
 
 	// DNS server and client
 
-	tcpCmd := root.NewSubCommand("dns", "dns").
-		Description("DNS Server/Client operations...", "")
+	tcpCmd := cmdr.NewSubCmd().Titles("dns", "dns").
+		Description("DNS Server/Client operations...", "").
+		AttachTo(root)
 
 	var pis = pi.NewDNSInterceptor()
 	opt1 := server.WithCmdrServerProtocolInterceptor(pis)

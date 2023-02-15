@@ -278,7 +278,7 @@ go-build-child:
 	@echo "           +race. -trimpath. APPNAME = $(APPNAME), LDFLAGS = $(LDFLAGS)"
 	$(GO) build -v -ldflags "$(LDFLAGS)" -o $(GOBIN)/$(APPNAME)$(SUFFIX) $(MAINGONAME)
 	@ls -la $(LS_OPT) $(GOBIN)/$(APPNAME)$(SUFFIX)
-	@echo "  > go-build-child: END."
+	echo "  > go-build-child: END."
 
 
 
