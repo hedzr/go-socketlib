@@ -111,11 +111,14 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 	go func() {
 		baseCtx := context.WithValue(context.Background(), CTX_SERVER_OBJECT_KEY, so)
 
-		so.protocolInterceptor.OnListened(baseCtx, config.Addr)
+		if so.protocolInterceptor != nil {
+			so.protocolInterceptor.OnListened(baseCtx, config.Addr)
+		}
+
 		if tlsEnabled {
 			so.Printf("Listening on %s with TLS enabled.", config.Addr)
 		} else {
-			so.Printf("Listening on %s.", config.Addr)
+			so.Printf("Listening on %s (no tls).", config.Addr)
 		}
 
 		if err = serve(baseCtx); err != nil {
@@ -129,7 +132,7 @@ func DefaultCommandAction(cmd *cmdr.Command, args []string, prefixPrefix string,
 	}()
 
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
-		so.Debugf("signal %v caught, requesting shutdown ...", s)
+		so.Debugf("signal '%v' caught, requesting shutdown ...", s)
 		so.RequestShutdown()
 	})()
 

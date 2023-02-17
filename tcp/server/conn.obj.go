@@ -77,13 +77,31 @@ func (s *connectionObj) HandleConnection(ctx context.Context) {
 		s.serverObj.Debugf("[#%d] Client at %q disconnected.", s.uid, s.RemoteAddrString())
 	}()
 
-	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
-		sspi.OnConnected(ctx, s)
+	if ssopi := s.serverObj.protocolInterceptor; ssopi != nil {
+		ssopi.OnConnected(ctx, s)
 	}
 
+	go s.provision(ctx)
 	go s.handleWriteRequests(ctx)
-
 	s.loopDispatchReadingMessages(ctx)
+}
+
+func (s *connectionObj) provision(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer func() {
+		ticker.Stop()
+		s.serverObj.Debugf(`[#%d] provision routine stopped.`, s.uid)
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debugf("[#%d] info: ctx.Done() got and exit from HandleConnection()", s.uid)
+			return
+		case <-ticker.C:
+			break // wake up and provision itself
+		}
+	}
 }
 
 func (s *connectionObj) loopDispatchReadingMessages(ctx context.Context) {
@@ -94,10 +112,13 @@ func (s *connectionObj) loopDispatchReadingMessages(ctx context.Context) {
 		ok := scanner.Scan()
 		if !ok {
 			if scanner.Err() != nil { // not EOF?
-				log.Errorf("wrong/error: cannot scan the input stream: %v", scanner.Err())
+				log.Warnf("wrong/error: cannot scan from the input stream: %v", scanner.Err())
 				break
 			}
+			log.Info("not ok: unknown error so cannot scan from the input stream / or, closed from client? - exit, and close the connection")
+			return
 		}
+
 		select {
 		case <-ctx.Done():
 			log.Debugf("info: ctx.Done() got and exit from HandleConnection()")
@@ -106,10 +127,15 @@ func (s *connectionObj) loopDispatchReadingMessages(ctx context.Context) {
 		}
 
 		data := scanner.Bytes()
-		if len(data) == 0 {
-			time.Sleep(time.Millisecond)
-			continue
-		}
+
+		// if len(data) == 0 {
+		// 	time.Sleep(time.Millisecond)
+		// 	continue
+		// }
+		//
+		// if ok {
+		// 	s.handleMessage(ctx, data)
+		// }
 
 		s.handleMessage(ctx, data)
 	}
@@ -127,16 +153,15 @@ func scanAA55(data []byte, atEOF bool) (advance int, token []byte, err error) {
 }
 
 func (s *connectionObj) handleMessage(ctx context.Context, msg []byte) {
-
 	if msg == nil {
 		return
 	}
 
-	if sspi := s.serverObj.protocolInterceptor; sspi != nil {
-		if processed, err := sspi.OnReading(ctx, s, msg); processed {
+	if ssopi := s.serverObj.protocolInterceptor; ssopi != nil {
+		if processed, err := ssopi.OnReading(ctx, s, msg); processed {
 			return
 		} else if err != nil {
-			s.serverObj.Errorf("[#%d] error occurs on intercepting reading bytes: %v", s.uid, err)
+			s.serverObj.Errorf("[#%d] error occurs on intercepting reading bytes: %v | source: %v", s.uid, err, ssopi)
 			return
 		}
 	}
@@ -181,19 +206,13 @@ func (s *connectionObj) handleWriteRequests(ctx context.Context) {
 	}
 }
 
-func (s *connectionObj) WriteString(message string) {
-	s.wrCh <- []byte(message)
-}
-
-func (s *connectionObj) Write(message []byte) {
-	s.wrCh <- message
-}
+func (s *connectionObj) WriteString(message string) { s.wrCh <- []byte(message) }
+func (s *connectionObj) Write(message []byte)       { s.wrCh <- message }
 
 func (s *connectionObj) doWrite(ctx context.Context, msg []byte) {
 	if s.conn != nil {
-
-		if sspi := s.serverObj.protocolInterceptor; sspi != nil {
-			if processed, err := sspi.OnWriting(ctx, s, msg); processed {
+		if ssopi := s.serverObj.protocolInterceptor; ssopi != nil {
+			if processed, err := ssopi.OnWriting(ctx, s, msg); processed {
 				return
 			} else if err != nil {
 				s.serverObj.Errorf("[#%d] error occurs on intercepting writing bytes: %v", s.uid, err)
@@ -216,15 +235,26 @@ func (s *connectionObj) doWrite(ctx context.Context, msg []byte) {
 }
 
 func (s *connectionObj) RawWrite(ctx context.Context, msg []byte) (n int, err error) {
+	return s.WriteNow(msg, s.serverObj.WriteTimeout)
+	return
+}
+
+func (s *connectionObj) WriteNow(msg []byte, deadline ...time.Duration) (n int, err error) {
 	if s.conn != nil {
-		err = s.conn.SetWriteDeadline(time.Now().Add(s.serverObj.WriteTimeout))
-		if err != nil {
-			s.serverObj.Errorf("[#%d] error set writing deadline: %v", s.uid, err)
-			return
+		for _, dur := range deadline {
+			err = s.conn.SetWriteDeadline(time.Now().Add(dur))
+			if err != nil {
+				s.serverObj.Errorf("[#%d] error set writing deadline: %v", s.uid, err)
+				return
+			}
 		}
 		n, err = s.conn.Write(msg)
 	}
 	return
+}
+
+func (c *connectionObj) Read(p []byte) (n int, err error) {
+	return c.conn.Read(p)
 }
 
 func (s *connectionObj) RemoteAddrString() string {
@@ -236,4 +266,8 @@ func (s *connectionObj) RemoteAddrString() string {
 
 func (s *connectionObj) RemoteAddr() net.Addr {
 	return s.conn.RemoteAddr()
+}
+
+func (s *connectionObj) LocalAddr() net.Addr {
+	return s.conn.LocalAddr()
 }

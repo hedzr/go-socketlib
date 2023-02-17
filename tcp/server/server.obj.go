@@ -18,6 +18,8 @@ import (
 const CTX_SERVER_OBJECT_KEY = "server-object"
 const CTX_CONN_KEY = "conn"
 
+const iMaxBurst = 16
+
 type Obj struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
@@ -26,7 +28,9 @@ type Obj struct {
 
 	listener            net.Listener
 	udpConn             *udp.Obj
-	connections         []*connectionObj
+	connections         map[Connection]bool // hold all tcp connections
+	chConnAdd           chan Connection
+	chConnRm            chan Connection
 	closeErr            error
 	pfs                 base.PidFile
 	newConnFunc         NewConnectionFunc
@@ -45,7 +49,9 @@ func newServerObj(config *base.Config) (s *Obj) {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		Logger:       nil,
-		connections:  nil,
+		connections:  make(map[Connection]bool),
+		chConnAdd:    make(chan Connection, iMaxBurst),
+		chConnRm:     make(chan Connection, iMaxBurst),
 		closeErr:     nil,
 		newConnFunc:  newConnObj,
 		netType:      defaultNetType,
@@ -106,7 +112,10 @@ func (s *Obj) Close() {
 		s.udpConn = nil
 	}
 
-	for _, c := range s.connections {
+	close(s.chConnAdd)
+	close(s.chConnRm)
+
+	for c := range s.connections {
 		c.Close()
 	}
 
@@ -184,6 +193,7 @@ func (s *Obj) Serve(baseCtx context.Context) (err error) {
 		s.Close()
 	}()
 
+	go s.connBumper(ctx)
 	err = executors[s.isUDP()](s, ctx)
 	return
 }
@@ -242,7 +252,12 @@ func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 
 		var co Connection
 		co = s.newConnection(ctx, conn)
-		go co.HandleConnection(ctx)
+		go func(ctx context.Context) {
+			defer func() {
+				s.updateConnections(co, -1) // update connections map
+			}()
+			co.HandleConnection(ctx)
+		}(ctx)
 		// c := srv.newConn(rw)
 		// c.setState(c.rwc, StateNew) // before Serve can return
 		// go c.serve(ctx)
@@ -252,7 +267,40 @@ func tcpExecutor(s *Obj, ctx context.Context) (err error) {
 
 func (s *Obj) newConnection(ctx context.Context, conn net.Conn) (co Connection) {
 	co = s.newConnFunc(ctx, s, conn)
+	s.updateConnections(co, 1)
 	return
+}
+
+func (s *Obj) updateConnections(co Connection, delta int) {
+	if delta > 0 {
+		s.chConnAdd <- co
+	} else {
+		s.chConnRm <- co
+	}
+}
+
+func (s *Obj) connBumper(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer func() {
+		ticker.Stop()
+		s.Debugf(`connBumper stopped.`)
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debugf("info: ctx.Done() got and exit from connBumper()")
+			return
+		case <-ticker.C:
+			break // wake up and provision itself
+		case co := <-s.chConnRm:
+			delete(s.connections, co)
+			log.Infof(`    connections: %d - rm`, len(s.connections))
+		case co := <-s.chConnAdd:
+			s.connections[co] = true
+			log.Infof(`    connections: %d - add`, len(s.connections))
+		}
+	}
 }
 
 func (s *Obj) SetNewConnectionFunc(fn NewConnectionFunc) {
@@ -282,5 +330,5 @@ func Shutdown(serverObj *Obj) {
 	<-globalDoneCh
 }
 
-var globalExitCh = make(chan struct{})
-var globalDoneCh = make(chan struct{})
+var globalExitCh = make(chan struct{}, 3)
+var globalDoneCh = make(chan struct{}, 3)
