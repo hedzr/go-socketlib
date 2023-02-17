@@ -7,6 +7,7 @@ import (
 
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
+	"github.com/hedzr/go-socketlib/trace"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	// _ "github.com/hedzr/logex/logx/zap"
 	// _ "github.com/hedzr/logex/logx/zap/sugar"
@@ -19,18 +20,13 @@ const (
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, defaultBackend, defaultLevel, log.WithTimestamp(true)))),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(
+			true, defaultBackend, defaultLevel,
+			log.WithTimestamp(true, "")))),
 		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
-		// trace.WithTraceEnable(true),
-		// attaches `--trace` to root command
-		cmdr.WithXrefBuildingHooks(func(root *cmdr.RootCommand, args []string) {
-			cmdr.NewBool(false).
-				Titles("tr", "trace").
-				Description("enable trace mode for tcp/mqtt send/recv data dump", "").
-				AttachToRoot(root)
-		}, nil),
+		trace.WithTraceEnable(true),
 
 		// The following codes are unnecessary since v1.9.x:
 		// cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {

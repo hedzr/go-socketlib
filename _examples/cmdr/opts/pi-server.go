@@ -9,6 +9,7 @@ import (
 
 	"github.com/hedzr/go-socketlib/_examples/cmdr/pibufio"
 	"github.com/hedzr/go-socketlib/tcp/base"
+	"github.com/hedzr/go-socketlib/tcp/server"
 )
 
 func newServerPI() *piServer {
@@ -60,8 +61,8 @@ func (p *piServer) OnListened(baseCtx context.Context, addr string) {
 }
 
 func (p *piServer) OnServerReady(ctx context.Context, c log.Logger) {
-	// panic("implement me")
-	c.Debugf("(pi) onServerReady...")
+	conn := ctx.Value(server.CTX_CONN_KEY)
+	c.Debugf("(pi) onServerReady... conn (%v)", conn)
 }
 
 func (p *piServer) OnServerClosed(server log.Logger) {

@@ -94,8 +94,8 @@ func (s *iobuf) enqueue(data []byte) {
 }
 
 func (s *iobuf) try() (extracted bool) {
-	defer s.rw.RUnlock()
 	s.rw.RLock()
+	defer s.rw.RUnlock()
 	for {
 		if s.cachedLengthField > 0 {
 			if s.Buffer.Len() >= s.cachedLengthField {

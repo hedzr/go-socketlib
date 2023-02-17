@@ -6,6 +6,7 @@ import (
 	"github.com/hedzr/go-socketlib/_examples/dns/pi"
 	"github.com/hedzr/go-socketlib/tcp/client"
 	"github.com/hedzr/go-socketlib/tcp/server"
+	"github.com/hedzr/go-socketlib/trace"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	// "github.com/hedzr/logex/logx/logrus"
 	// _ "github.com/hedzr/logex/logx/zap"
@@ -18,7 +19,7 @@ func main() {
 		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
-		// trace.WithTraceEnable(true),
+		trace.WithTraceEnable(true),
 
 		cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
 			root.FindSubCommand("generate").Hidden = true

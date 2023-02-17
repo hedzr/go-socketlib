@@ -5,7 +5,8 @@ import (
 	"github.com/hedzr/log"
 	"github.com/hedzr/logex/build"
 
-	"github.com/hedzr/go-socketlib/_examples/cmdr/opts"
+	"github.com/hedzr/go-socketlib/_examples/cmdr-simple/opts"
+	"github.com/hedzr/go-socketlib/trace"
 	// "github.com/hedzr/cmdr-addons/pkg/plugins/trace"
 	// _ "github.com/hedzr/logex/logx/zap"
 	// _ "github.com/hedzr/logex/logx/zap/sugar"
@@ -13,11 +14,21 @@ import (
 
 func main() {
 	if err := cmdr.Exec(buildRootCmd(),
-		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(true, "logrus", "debug"))),
+		cmdr.WithLogx(build.New(log.NewLoggerConfigWith(
+			true, "logrus", "debug",
+			log.WithTimestamp(true, "")))),
 		// cmdr.WithLogex(cmdr.Level(log.WarnLevel)),
 
 		// add '--trace' command-line flag and enable logex.GetTraceMode/cmdr.GetTraceMode
 		// trace.WithTraceEnable(true),
+
+		// since cmdr v1.11.10:
+		// cmdr.WithIfOpt(isdelve.Enabled, func() cmdr.ExecOption {
+		// 	return pprof.GetCmdrProfilingOptions()
+		// }),
+
+		// enable '--trace' command line option to toggle a internal trace mode (can be retrieved by cmdr.GetTraceMode())
+		trace.WithTraceEnable(defaultTraceEnabled),
 
 		cmdr.WithXrefBuildingHooks(nil, func(root *cmdr.RootCommand, args []string) {
 			root.FindSubCommand("generate").Hidden = true
@@ -50,4 +61,5 @@ const (
 $ {{.AppName}} --help
   show help screen.
 `
+	defaultTraceEnabled = true
 )
