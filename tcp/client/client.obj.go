@@ -16,10 +16,10 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/protocol"
 )
 
-func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) {
+func newClientObj(conn net.Conn, tid int, logger log.Logger, opts ...Opt) (c *clientObj) {
 	c = &clientObj{
 		Logger:             logger,
-		conn:               conn,
+		tid:                tid,
 		quiting:            false,
 		prefixInConfigFile: "tcp.client.tls",
 	}
@@ -35,9 +35,9 @@ func newClientObj(conn net.Conn, logger log.Logger, opts ...Opt) (c *clientObj) 
 
 type clientObj struct {
 	log.Logger
-	conn                net.Conn // for tcp, unix
-	baseConn            base.Conn
-	protocolInterceptor protocol.Interceptor
+	tid                 int                  // thread-id in parallel testing, 0 for udp, 1..n for tcp
+	baseConn            base.Conn            //
+	protocolInterceptor protocol.Interceptor //
 	quiting             bool
 	closeErr            error
 	prefixInConfigFile  string
@@ -61,7 +61,7 @@ func (c *clientObj) AsBaseConn() base.Conn {
 	return c.baseConn
 }
 
-func (c *clientObj) Join(ctx context.Context, done chan bool) {
+func (c *clientObj) Join(ctx context.Context, done chan<- bool) {
 	if c.baseConn != nil {
 		c.Close()
 		close(done)
@@ -69,26 +69,27 @@ func (c *clientObj) Join(ctx context.Context, done chan bool) {
 }
 
 func (c *clientObj) Close() {
-	if c.baseConn != nil {
-		if c.protocolInterceptor != nil {
-			c.protocolInterceptor.OnClosing(c.baseConn, 0)
-		}
-		c.baseConn.Close()
-		// c.conn = nil
+	c.quiting = true
+	if cc := c.baseConn; cc != nil {
 		c.baseConn = nil
 		if c.protocolInterceptor != nil {
-			c.protocolInterceptor.OnClosed(c.baseConn, 0)
+			c.protocolInterceptor.OnClosing(cc, 0)
+		}
+		c.Debugf("closing c.baseConn")
+		cc.Close()
+		if c.protocolInterceptor != nil {
+			c.protocolInterceptor.OnClosed(cc, 0)
 		}
 	}
 }
 
-func (c *clientObj) startLoopers(done chan bool) {
-	go c.readConnection(done)
+func (c *clientObj) startLoopers(done chan bool, readBroken chan<- bool) {
+	go c.readConnection(done, readBroken)
 	go c.runPrompt()
 }
 
-func (c *clientObj) run(done chan bool) {
-	go c.readConnection(done)
+func (c *clientObj) run(done chan bool, readBroken chan<- bool) {
+	go c.readConnection(done, readBroken)
 	c.runPrompt()
 }
 
@@ -115,12 +116,7 @@ func (c *clientObj) runPrompt() {
 			c.quiting = true
 		}
 
-		err = c.conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-		if err != nil {
-			c.Errorf("error set writing deadline: %v", err)
-			break
-		}
-		_, err = c.conn.Write([]byte(text))
+		_, err = c.baseConn.WriteNow([]byte(text), time.Second)
 		if err != nil {
 			c.Errorf("error writing to stream: %v", err)
 			break
@@ -128,16 +124,23 @@ func (c *clientObj) runPrompt() {
 	}
 }
 
-func (c *clientObj) readConnection(done chan bool) {
+func (c *clientObj) readConnection(done chan bool, readBroken chan<- bool) {
 	defer func() {
-		done <- true
+		readBroken <- true
 	}()
 
 	for {
-		scanner := bufio.NewScanner(c.conn)
+		scanner := bufio.NewScanner(c.baseConn)
 
 		for c.quiting == false {
 			ok := scanner.Scan()
+
+			select {
+			case <-done:
+				return
+			default:
+			}
+
 			text := scanner.Text()
 
 			command := handleCommands(text)
@@ -149,7 +152,8 @@ func (c *clientObj) readConnection(done chan bool) {
 				if c.quiting {
 					return
 				}
-				fmt.Println("Reached EOF on server connection.")
+				// fmt.Println("Reached EOF on server connection.")
+				c.Errorf("[%d] <%v - %v> %v", c.tid, c.baseConn.LocalAddr(), c.baseConn.RemoteAddr(), "Reached EOF on server connection.")
 				return
 			}
 		}

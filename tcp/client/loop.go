@@ -13,7 +13,7 @@ import (
 	"github.com/hedzr/go-socketlib/tcp/udp"
 )
 
-func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err error) {
+func tcpUnixBenchLoop(config *base.Config, done chan<- bool, opts ...Opt) (err error) {
 	maxTimes := cmdr.GetIntRP(config.PrefixInCommandLine, "times")
 	parallel := cmdr.GetIntRP(config.PrefixInCommandLine, "parallel")
 	sleep := cmdr.GetDurationRP(config.PrefixInCommandLine, "sleep")
@@ -31,10 +31,11 @@ func tcpUnixBenchLoop(config *base.Config, done chan bool, opts ...Opt) (err err
 
 func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 	var (
-		conn net.Conn
-		done = make(chan bool, 1)
-		tid  = 1
-		ctc  *tls2.CmdrTlsConfig
+		conn       net.Conn
+		done       = make(chan bool, 1)
+		readBroken = make(chan bool, 1)
+		tid        = 1
+		ctc        *tls2.CmdrTlsConfig
 	)
 	if config.TlsConfigInitializer != nil {
 		ctc = tls2.NewTlsConfig(config.TlsConfigInitializer)
@@ -57,14 +58,14 @@ func tcpUnixLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error
 		return
 	}
 
-	co := newClientObj(conn, config.Logger, opts...)
+	co := newClientObj(conn, tid, config.Logger, opts...)
 	defer co.Close()
 
 	if i, ok := co.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
 		i.SetLogger(config.Logger)
 	}
 
-	co.startLoopers(done)
+	co.startLoopers(done, readBroken)
 
 	if mainLoop == nil {
 		mainLoop = co.mainLoop
@@ -82,10 +83,10 @@ func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 	done := make(chan bool)
 	defer func() {
 		<-done
-		config.Logger.Debugf("end.")
+		config.Logger.Debugf("udpLoop end.")
 	}()
 
-	co := newClientObj(nil, config.Logger, opts...)
+	co := newClientObj(nil, 0, config.Logger, opts...)
 	defer co.Join(ctx, done)
 
 	if i, ok := co.protocolInterceptor.(interface{ SetLogger(log.Logger) }); ok {
@@ -95,17 +96,19 @@ func udpLoop(config *base.Config, mainLoop MainLoop, opts ...Opt) (err error) {
 	ln := cmdr.GetIntRP(config.PrefixInConfigFile, "listeners", 0)
 	uo := udp.New(co, udp.WithListenerNumber(ln))
 	if err = uo.Connect(ctx, config); err != nil {
-		config.Logger.Errorf("failed to create udp socket handler: %v", err)
+		config.Logger.Errorf("udpLoop: failed to create udp socket handler: %v", err)
 		return
 	}
+
+	// close udp resources at ending of loop
 	defer uo.Join(ctx, done)
 
 	// co.SetBaseConn(uo.AsBaseConn())
 	go func() {
 		if err = uo.ClientServe(ctx); err != nil {
-			config.Logger.Errorf("failed to communicate via udp socket handler: %v", err)
+			config.Logger.Errorf("udpLoop: failed to communicate via udp socket handler: %v", err)
 		}
-		config.Logger.Debugf("Serve() end.")
+		config.Logger.Debugf("udpLoop: Serve() end.")
 	}()
 
 	if mainLoop == nil {

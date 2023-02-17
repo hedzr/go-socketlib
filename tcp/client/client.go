@@ -92,12 +92,11 @@ func runAsCliTool(cmd *cmdr.Command, args []string, mainLoop MainLoop, prefixPre
 	done := make(chan bool, 1)
 	if cmdr.GetBool("interactive", cmdr.GetBoolRP(config.PrefixInCommandLine, "interactive")) {
 		err = runOneClient(config.Logger, done, cmd, args, opts...)
-
 	} else {
-		err = tcpUnixBenchLoop(config, done, opts...)
-
+		err = tcpUnixBenchLoop(config, done, opts...) // call multiple instances of clientRunner() for bench-test
 	}
 
+	// entering dead loop until break signals caught, or `done` triggered or closed
 	cmdr.TrapSignalsEnh(done, func(s os.Signal) {
 		config.Logger.Debugf("signal[%v] caught and exiting this program", s)
 	})()
@@ -124,9 +123,7 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 	logger.Debugf("dest: %v", dest)
 
 	// netType := cmdr.GetStringRP(prefix, "network", netType)
-	conn, err = ctc.Dial(netType, dest)
-
-	if err != nil {
+	if conn, err = ctc.Dial(netType, dest); err != nil {
 		if _, t := err.(*net.OpError); t {
 			// fmt.Println("Some problem connecting.")
 			logger.Errorf("[%d] Some problem connecting: %v", tid, err)
@@ -138,9 +135,18 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 		return
 	}
 
-	done := make(chan bool)
-	co := newClientObj(conn, logger, opts...)
-	go co.readConnection(done)
+	logger.Debugf("[%d] dialed ok: %v->%v", tid, conn.LocalAddr(), dest)
+	// defer conn.Close()
+
+	done := make(chan bool, 1)
+	readBroken := make(chan bool, 1)
+	defer func() { close(done) }()
+	co := newClientObj(conn, tid, logger, opts...)
+	defer func() {
+		done <- true
+		co.Close()
+	}()
+	go co.readConnection(done, readBroken)
 
 	// var buildPackage func(i int, destAddr, threadId string) []byte
 	for i := 0; i < maxTimes; i++ {
@@ -148,6 +154,13 @@ func clientRunner(logger log.Logger, prefixCLI string, tid int, dest string, max
 		if co.buildPackage != nil {
 			data = co.buildPackage(i, tid, dest)
 		}
+
+		select {
+		case <-readBroken:
+			return
+		default:
+		}
+
 		// text := fmt.Sprintf("%d.%d. %v", tid, i, randRandSeq())
 		err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
 		if err != nil {
@@ -183,9 +196,8 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 	ctc := tls2.NewCmdrTlsConfig(prefix, prefixInCommandLine)
 	logger.Debugf("%v", ctc)
 	logger.Debugf("dest: %v", dest)
-	conn, err = ctc.Dial("tcp", dest)
 
-	if err != nil {
+	if conn, err = ctc.Dial("tcp", dest); err != nil {
 		if _, t := err.(*net.OpError); t {
 			logger.Errorf("Some problem connecting. error: %v", err)
 		} else {
@@ -195,7 +207,11 @@ func runOneClient(logger log.Logger, done chan bool, cmd *cmdr.Command, args []s
 		os.Exit(1)
 	}
 
-	newClientObj(conn, logger, opts...).run(done)
+	// defer conn.Close()
+	co := newClientObj(conn, 1, logger, opts...)
+	defer co.Close()
+	readBroken := make(chan bool)
+	co.run(done, readBroken)
 
 	// done <- true // to end the TrapSignalsEnh waiter by manually, instead of os signals caught.
 	return

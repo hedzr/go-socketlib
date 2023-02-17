@@ -111,7 +111,8 @@ func AttachToCmdrCommand(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 	}
 
 	if b.interactiveCommand {
-		tc2 := cmdr.NewSubCmd().Titles("interactive-client", "ic").
+		tc2 := cmdr.NewSubCmd().
+			Titles("interactive-client", "ic").
 			Description("TCP interactive client operations").
 			Group("Test").
 			Action(interactiveRunAsCliTool).
@@ -127,7 +128,8 @@ func AttachToCmdrCommand(tcp cmdr.OptCmd, opts ...CmdrOpt) {
 		}
 	}
 
-	theClient := cmdr.NewSubCmd().Titles("client", "c").
+	theClient := cmdr.NewSubCmd().
+		Titles("client", "c").
 		Description("TCP/UDP/Unix client operations").
 		// Group("Test").
 		Action(func(cmd *cmdr.Command, args []string) (err error) {
@@ -154,15 +156,15 @@ func defaultUdpMainLoop(ctx context.Context, conn base.Conn, done chan bool, con
 
 	_, err = conn.RawWrite(ctx, []byte("hello"))
 	// uo.WriteTo(nil, []byte("hello"))
-	config.Logger.Debugf("'hello' wrote: %v", err)
+	config.Logger.Debugf("'hello' wrote, err = %v", err)
 
 	if wr, ok := conn.(base.CachedUDPWriter); ok {
 		// _, err = uo.WriteThrough([]byte("world"))
 		wr.WriteTo(nil, []byte("world"))
-		config.Logger.Debugf("'world' wrote: %v", err)
+		config.Logger.Debugf("'world' wrote, err = %v", err)
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond)
 	config.PressEnterToExit()
 	// _, _ = uo.WriteThrough([]byte("hello"))
 
