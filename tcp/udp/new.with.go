@@ -21,7 +21,6 @@ func New(so protocol.InterceptorHolder, opts ...Opt) (obj *Obj) {
 		obj = &Obj{
 			Logger:            so.(log.Logger),
 			InterceptorHolder: so,
-			conn:              nil,
 			addr:              nil,
 			maxBufferSize:     DefaultPacketSize,
 			rb:                x,
@@ -49,6 +48,6 @@ func WithListenerNumber(n int) Opt {
 
 func WithUDPConn(conn *net.UDPConn, addr *net.UDPAddr) Opt {
 	return func(obj *Obj) {
-		obj.conn, obj.addr = conn, addr
+		obj.udpconn, obj.addr = conn, addr
 	}
 }
