@@ -13,15 +13,15 @@
 
 WIP. Here is a pre-release version.
 
-- v0.5.0 (WIP)
-	- planning review API
+- v0.5.0
+  - planning review API
 
 - v0.3.0
-	- BREAK: go 1.16.x and below is no longer supported.
-	- fixed bugs found.
+  - BREAK: go 1.16.x and below is no longer supported.
+  - fixed bugs found.
 
 - v0.2.5
-	- old release
+  - old release
 
 ## Features
 
