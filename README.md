@@ -13,6 +13,9 @@
 
 WIP. Here is a pre-release version.
 
+- v0.5.1
+  - security updates
+
 - v0.5.0
   - planning review API
 
