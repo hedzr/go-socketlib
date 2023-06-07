@@ -2,6 +2,10 @@
 *.iml
 .DS\_Store
 
+*.code-workspace
+*.local
+.local/
+
 tmp/
 bin/
 output/
@@ -45,7 +49,6 @@ cover.html
 ###
 
 *_string.go
-
 
 ### Go template
 # Binaries for programs and plugins
