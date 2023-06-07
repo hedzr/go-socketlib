@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hedzr/log"
+	"github.com/hedzr/log/detects"
 	"gopkg.in/hedzr/errors.v3"
 
 	"github.com/hedzr/go-socketlib/_examples/cmdr/opts/codec"
@@ -20,7 +21,7 @@ const (
 )
 
 func New() Queue {
-	var traceEnabled = log.GetDebugMode() || log.GetTraceMode()
+	var traceEnabled = detects.IsDebugModeEnabled() || detects.IsTraceModeEnabled()
 	return &iobuf{
 		err:              nil,
 		packageExtractor: &pe{},

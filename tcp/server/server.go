@@ -10,6 +10,7 @@ import (
 
 	"github.com/hedzr/cmdr"
 	"github.com/hedzr/log"
+	"github.com/hedzr/log/detects"
 
 	"github.com/hedzr/go-socketlib/tcp/base"
 )
@@ -43,7 +44,7 @@ func newServer(config *base.Config, preferLogger log.Logger, opts ...Opt) (serve
 		return
 	}
 
-	so.Infof("Starting server (%v)... cmdr.InDebugging = %v", so.netType, cmdr.InDebugging())
+	so.Infof("Starting server (%v)... cmdr.InDebugging = %v", so.netType, detects.InDebugging())
 	so.Tracef("    logging.level: %v", so.Logger.GetLevel())
 	// so.Infof("Starting server...")
 
