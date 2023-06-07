@@ -2,7 +2,7 @@
 
 ![Go](https://github.com/hedzr/go-socketlib/workflows/Go/badge.svg)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/hedzr/go-socketlib.svg?label=release)](https://github.com/hedzr/go-socketlib/releases)
-[![](https://img.shields.io/badge/go-dev-green)](https://pkg.go.dev/github.com/hedzr/go-socketlib)
+[![Go Dev](https://img.shields.io/badge/go-dev-green)](https://pkg.go.dev/github.com/hedzr/go-socketlib)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/hedzr/go-socketlib)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hedzr/go-socketlib)](https://goreportcard.com/report/github.com/hedzr/go-socketlib)
 [![Coverage Status](https://coveralls.io/repos/github/hedzr/go-socketlib/badge.svg?branch=master&.9)](https://coveralls.io/github/hedzr/go-socketlib?branch=master)
@@ -12,6 +12,9 @@
 ## News
 
 WIP. Here is a pre-release version.
+
+- v0.5.2
+  - upgrade deps
 
 - v0.5.1
   - security updates
