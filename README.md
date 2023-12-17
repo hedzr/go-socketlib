@@ -11,7 +11,8 @@
 
 ## News
 
-WIP. Here is a pre-release version.
+- v0.5.3
+  - security updates
 
 - v0.5.2
   - upgrade deps
