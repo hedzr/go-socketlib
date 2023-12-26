@@ -11,6 +11,11 @@
 
 ## News
 
+Rewriting to v1.
+
+- v0.5.5
+  - security updates
+
 - v0.5.3
   - security updates
 
