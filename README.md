@@ -21,6 +21,8 @@
 For full list, have a see at [CHANGELOG](CHANGELOG).
 
 - v1.0.x
+  - [**BREAK**] Rewritten with new API.
+  - go 1.21+ needed
   - v1.0.1: pre-released for primary structure frozen now.
 
 - v0.5.x
