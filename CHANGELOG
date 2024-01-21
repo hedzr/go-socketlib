@@ -1,0 +1,24 @@
+# CHANGELOG
+
+- v1.0.x
+  - [**BREAK**] Rewritten with new API.
+  - v1.0.1: pre-released for primary structure frozen now.
+
+- v0.5.3
+  - security updates
+
+- v0.5.2
+  - upgrade deps
+
+- v0.5.1
+  - security updates
+
+- v0.5.0
+  - planning review API
+
+- v0.3.0
+  - BREAK: go 1.16.x and below is no longer supported.
+  - fixed bugs found.
+
+- v0.2.5
+  - old release

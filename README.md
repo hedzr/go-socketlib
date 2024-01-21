@@ -4,42 +4,27 @@
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/hedzr/go-socketlib.svg?label=release)](https://github.com/hedzr/go-socketlib/releases)
 [![Go Dev](https://img.shields.io/badge/go-dev-green)](https://pkg.go.dev/github.com/hedzr/go-socketlib)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/hedzr/go-socketlib)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hedzr/go-socketlib)](https://goreportcard.com/report/github.com/hedzr/go-socketlib)
-[![Coverage Status](https://coveralls.io/repos/github/hedzr/go-socketlib/badge.svg?branch=master&.9)](https://coveralls.io/github/hedzr/go-socketlib?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hedzr/go-socketlib)](https://goreportcard.com/report/github.com/hedzr/go-socketlib)<!--
+[![Coverage Status](https://coveralls.io/repos/github/hedzr/go-socketlib/badge.svg?branch=master&.9)](https://coveralls.io/github/hedzr/go-socketlib?branch=master) -->
 
 `go-socketlib` provides a simple, fast approach to implement your communication protocol.
-
-## News
-
-Rewriting to v1.
-
-- v0.5.5
-  - security updates
-
-- v0.5.3
-  - security updates
-
-- v0.5.2
-  - upgrade deps
-
-- v0.5.1
-  - security updates
-
-- v0.5.0
-  - planning review API
-
-- v0.3.0
-  - BREAK: go 1.16.x and below is no longer supported.
-  - fixed bugs found.
-
-- v0.2.5
-  - old release
 
 ## Features
 
 - supports TCP, UDP, and Unix socket server/client developing
+- Wrap the dirty jobs in programming socket server and client so that you can devote into protocol design and coding.
 - Write your business logical
-  with [protocol.Interceptor](https://github.com/hedzr/go-socketlib/blob/master/tcp/protocol/protocol.go#L22)
+  with [api.Interceptor](https://github.com/hedzr/go-socketlib/blob/master/net/api/protocol.go#L22) and [api.UdpInterceptor](https://github.com/hedzr/go-socketlib/blob/master/net/api/protocol.go#L22), also [api.ServerInterceptor] and [api.ServerUDPInterceptor].
+
+## History
+
+For full list, have a see at [CHANGELOG](CHANGELOG).
+
+- v1.0.x
+  - v1.0.1: pre-released for primary structure frozen now.
+
+- v0.5.x
+  - Old archive here.
 
 ## Getting Start
 
