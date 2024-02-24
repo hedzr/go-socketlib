@@ -8,4 +8,4 @@ go 1.21
 
 //replace github.com/hedzr/logg => ../../cmdr.v2/libs.logg
 
-require github.com/hedzr/is v0.5.13
+require github.com/hedzr/is v0.5.15
