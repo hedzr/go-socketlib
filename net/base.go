@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	logz "log/slog"
+	// pkgerrors "github.com/pkg/errors"
 
 	"github.com/hedzr/is/basics"
 )
@@ -117,6 +117,57 @@ func (s *baseS) Println(args ...any) {
 func (s *baseS) Log(ctx context.Context, lvl slog.Level, msg string, args ...any) {
 	s.logger.Log(ctx, lvl, msg, args...)
 }
+
+func (s *baseS) VerboseContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Verbose(msg, args...)
+	// s.logger.Info(msg, args...)
+	s.logger.Log(ctx, LevelVerbose, msg, args...)
+}
+func (s *baseS) TraceContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Trace(msg, args...)
+	// s.logger.Info(msg, args...)
+	s.logger.Log(ctx, LevelTrace, msg, args...)
+}
+func (s *baseS) DebugContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Debug(msg, args...)
+	s.logger.Log(ctx, slog.LevelDebug, msg, args...)
+}
+func (s *baseS) FatalContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Panic(msg, args...)
+	// s.logger.Error(msg, args...)
+	s.logger.Log(ctx, LevelFatal, msg, args...)
+	panic(msg)
+}
+func (s *baseS) PanicContext(ctx context.Context, msg string, args ...any) {
+	s.logger.Log(ctx, LevelPanic, msg, args...)
+	panic(msg)
+}
+func (s *baseS) ErrorContext(ctx context.Context, msg string, args ...any) {
+	s.logger.Log(ctx, slog.LevelError, msg, args...)
+}
+func (s *baseS) WarnContext(ctx context.Context, msg string, args ...any) {
+	s.logger.Log(ctx, slog.LevelWarn, msg, args...)
+}
+func (s *baseS) InfoContext(ctx context.Context, msg string, args ...any) {
+	s.logger.Log(ctx, slog.LevelInfo, msg, args...)
+}
+func (s *baseS) HintContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Trace(msg, args...)
+	// s.logger.Info(msg, args...)
+	s.logger.Log(ctx, LevelHint, msg, args...)
+}
+func (s *baseS) NoticeContext(ctx context.Context, msg string, args ...any) {
+	s.logger.Log(ctx, LevelNotice, msg, args...)
+}
+func (s *baseS) PrintContext(ctx context.Context, msg string, args ...any) {
+	// s.logger.Print(msg, args...)
+	s.logger.Log(ctx, LevelHint, msg, args...)
+}
+func (s *baseS) PrintlnContext(ctx context.Context, args ...any) {
+	// s.logger.Println(args...)
+	s.logger.Log(ctx, LevelHint, args[0].(string), args[1:]...)
+}
+
 func (s *baseS) Logger() Logger        { return s.logger }
 func (s *baseS) DefaultLogger() Logger { return newDefaultLogger() }
 
@@ -162,6 +213,16 @@ func newDefaultHandlerOptions() slog.HandlerOptions {
 				}
 
 				a.Value = slog.StringValue(levelLabel)
+			} else {
+				// switch a.Value.Kind() {
+				// // other cases
+				//
+				// case slog.KindAny:
+				// 	switch v := a.Value.Any().(type) {
+				// 	case error:
+				// 		a.Value = fmtErr(v)
+				// 	}
+				// }
 			}
 
 			return a
@@ -169,6 +230,71 @@ func newDefaultHandlerOptions() slog.HandlerOptions {
 	}
 	return opts
 }
+
+// // fmtErr returns a slog.GroupValue with keys "msg" and "trace". If the error
+// // does not implement interface { StackTrace() errors.StackTrace }, the "trace"
+// // key is omitted.
+// func fmtErr(err error) slog.Value {
+// 	var groupValues []slog.Attr
+//
+// 	groupValues = append(groupValues, slog.String("msg", err.Error()))
+//
+// 	type StackTracer interface {
+// 		StackTrace() pkgerrors.StackTrace
+// 	}
+//
+// 	// Find the trace to the location of the first errors.New,
+// 	// errors.Wrap, or errors.WithStack call.
+// 	var st StackTracer
+// 	for err := err; err != nil; err = errors.Unwrap(err) {
+// 		if x, ok := err.(StackTracer); ok {
+// 			st = x
+// 		}
+// 	}
+//
+// 	if st != nil {
+// 		groupValues = append(groupValues,
+// 			slog.Any("trace", traceLines(st.StackTrace())),
+// 		)
+// 	}
+//
+// 	return slog.GroupValue(groupValues...)
+// }
+//
+// func traceLines(frames pkgerrors.StackTrace) []string {
+// 	traceLines := make([]string, len(frames))
+//
+// 	// Iterate in reverse to skip uninteresting, consecutive runtime frames at
+// 	// the bottom of the trace.
+// 	var skipped int
+// 	skipping := true
+// 	for i := len(frames) - 1; i >= 0; i-- {
+// 		// Adapted from errors.Frame.MarshalText(), but avoiding repeated
+// 		// calls to FuncForPC and FileLine.
+// 		pc := uintptr(frames[i]) - 1
+// 		fn := runtime.FuncForPC(pc)
+// 		if fn == nil {
+// 			traceLines[i] = "unknown"
+// 			skipping = false
+// 			continue
+// 		}
+//
+// 		name := fn.Name()
+//
+// 		if skipping && strings.HasPrefix(name, "runtime.") {
+// 			skipped++
+// 			continue
+// 		} else {
+// 			skipping = false
+// 		}
+//
+// 		filename, lineNr := fn.FileLine(pc)
+//
+// 		traceLines[i] = fmt.Sprintf("%s %s:%d", name, filename, lineNr)
+// 	}
+//
+// 	return traceLines[:len(traceLines)-skipped]
+// }
 
 func newDefaultLogger() Logger {
 	onceLogger.Do(func() {
@@ -241,7 +367,7 @@ type Printer interface {
 	Info(msg string, args ...any)  // info. Attr, Attrs in args will be recognized as is
 	Debug(msg string, args ...any) // only for state.Env().InDebugging() or IsDebugBuild()
 
-	Log(ctx context.Context, lvl logz.Level, msg string, args ...any)
+	Log(ctx context.Context, lvl slog.Level, msg string, args ...any)
 }
 
 type ExtraPrinters interface {
