@@ -6,6 +6,7 @@
 *.code-workspace
 *.local
 .local/
+lint.txt
 
 tmp/
 bin/
