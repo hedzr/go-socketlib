@@ -1,5 +1,5 @@
-//go:build windows && appengine
-// +build windows,appengine
+//go:build windows || appengine
+// +build windows appengine
 
 /*
  * Copyright © 2020 Hedzr Yeh.
