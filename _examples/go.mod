@@ -11,8 +11,8 @@ go 1.22.7
 replace github.com/hedzr/go-socketlib => ../
 
 require (
-	github.com/hedzr/go-socketlib v1.0.1
-	github.com/hedzr/is v0.5.27
+	github.com/hedzr/go-socketlib v1.1.0
+	github.com/hedzr/is v0.6.0
 	github.com/miekg/dns v1.1.62
 )
 
