@@ -19,20 +19,7 @@
 
 ## History
 
-For full list, have a see at [CHANGELOG](CHANGELOG).
-
-- v1.1.0
-  - upgrade deps and security patches
-  - improved logger to compliant with hedzr/logg/slog and log/slog
-  - go 1.22.7 needed
-
-- v1.0.x
-  - [**BREAK**] Rewritten with new API.
-  - go 1.21+ needed
-  - v1.0.1: pre-released for primary structure frozen now.
-
-- v0.5.x
-  - Old archive here.
+For full list, have a see at [CHANGELOG](https://github.com/hedzr/go-socketlib/blob/master/CHANGELOG).
 
 ## Getting Start
 

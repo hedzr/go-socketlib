@@ -1,12 +1,15 @@
 # CHANGELOG
 
+- v1.1.1
+  - upgrade deps
+
 - v1.1.0
-  - go 1.22.7+ nedded
+  - go 1.22.7+ needed
 
 - v1.0.x
   - [**BREAK**] Rewritten with new API.
   - go 1.21+ needed
-  - v1.0.1: pre-released for primary structure frozen now.
+  - v1.0.1 - pre-released for primary structure frozen now.
 
 - v0.5.3
   - security updates
