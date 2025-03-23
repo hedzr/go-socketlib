@@ -1,6 +1,8 @@
 module github.com/hedzr/go-socketlib
 
-go 1.22.7
+go 1.23.0
+
+toolchain go1.23.3
 
 //replace github.com/hedzr/is => ../../cmdr.v2/libs.is
 
@@ -8,4 +10,4 @@ go 1.22.7
 
 //replace github.com/hedzr/logg => ../../cmdr.v2/libs.logg
 
-require github.com/hedzr/is v0.6.6
+require github.com/hedzr/is v0.7.7

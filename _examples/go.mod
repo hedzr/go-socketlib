@@ -1,6 +1,8 @@
 module github.com/hedzr/go-socketlib/_examples
 
-go 1.22.7
+go 1.23.0
+
+toolchain go1.23.3
 
 //replace github.com/hedzr/is => ../../../cmdr.v2/libs.is
 
@@ -11,8 +13,8 @@ go 1.22.7
 replace github.com/hedzr/go-socketlib => ../
 
 require (
-	github.com/hedzr/go-socketlib v1.1.1
-	github.com/hedzr/is v0.6.5
+	github.com/hedzr/go-socketlib v1.1.6
+	github.com/hedzr/is v0.7.7
 	github.com/miekg/dns v1.1.62
 )
 
