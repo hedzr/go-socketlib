@@ -1,11 +1,9 @@
 github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
-github.com/hedzr/cmdr/v2 v2.1.11 h1:1dLf+MNg2Y4d+FvjqaaVYI4J5dJAfzXas3hH6fY2C1w=
-github.com/hedzr/cmdr/v2 v2.1.11/go.mod h1:eaurfV9Sfg2IroF8Uso0219xVObDLDRKcTQH3NHDtqQ=
+github.com/hedzr/cmdr/v2 v2.1.12 h1:PZ09JyI5hAg22tlJG34OG4I/HsiE1WqFoDBbu6A8fHI=
+github.com/hedzr/cmdr/v2 v2.1.12/go.mod h1:eaurfV9Sfg2IroF8Uso0219xVObDLDRKcTQH3NHDtqQ=
 github.com/hedzr/evendeep v1.3.13 h1:Bc28hAEMAoz63F7SZ71Y0t7GS8bPVANYnRFR6uoKmXY=
 github.com/hedzr/evendeep v1.3.13/go.mod h1:BkZke+z9otkMKCRKntMDFzwHYm1aW5kp8MM6kcf0yYQ=
-github.com/hedzr/gsvc v0.3.2 h1:ttj1nVkdQYzcAw5WmOxmg8wm9Khyy77a05CakUGg+2A=
-github.com/hedzr/gsvc v0.3.2/go.mod h1:hjbecChsf2YJPrQy1DWIvUg7MM5cdZmUMmnb1Ru4xAs=
 github.com/hedzr/is v0.7.13 h1:B0DW0/23dQkPv+JT7H9RteEOoQNWOXc4P/WiY3ROBZo=
 github.com/hedzr/is v0.7.13/go.mod h1:WFu1skSfm6q5WbfeddRXjpI7NDKlHtbcCZZ0ID0zCDo=
 github.com/hedzr/logg v0.8.13 h1:8ErV/XKtvnon8MC0ezE+WTktbW/tpiwID289eYDXnxs=

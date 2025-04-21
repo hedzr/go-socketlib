@@ -4,12 +4,11 @@ go 1.23.0
 
 toolchain go1.23.3
 
-require github.com/hedzr/cmdr/v2 v2.1.11
+require github.com/hedzr/cmdr/v2 v2.1.12
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/hedzr/evendeep v1.3.13 // indirect
-	github.com/hedzr/gsvc v0.3.2 // indirect
 	github.com/hedzr/is v0.7.13 // indirect
 	github.com/hedzr/logg v0.8.13 // indirect
 	github.com/hedzr/store v1.3.13 // indirect
