@@ -10,4 +10,4 @@ toolchain go1.23.3
 
 //replace github.com/hedzr/logg => ../../cmdr.v2/libs.logg
 
-require github.com/hedzr/is v0.7.13
+require github.com/hedzr/is v0.7.15
